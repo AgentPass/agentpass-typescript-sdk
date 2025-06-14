@@ -5,11 +5,12 @@ import { Server } from 'http';
 
 describe('MCP Simple E2E Tests', () => {
   let app: express.Application;
-  let server: Server;
+  let server: Server | undefined;
   let agentpass: AgentPass;
 
   beforeEach(() => {
     app = express();
+    server = undefined;
     agentpass = new AgentPass({
       name: 'mcp-test-api',
       version: '1.0.0',
@@ -21,8 +22,9 @@ describe('MCP Simple E2E Tests', () => {
     agentpass.reset();
     if (server) {
       await new Promise<void>((resolve) => {
-        server.close(() => resolve());
+        server!.close(() => resolve());
       });
+      server = undefined;
     }
   });
 

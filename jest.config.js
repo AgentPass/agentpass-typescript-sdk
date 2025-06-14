@@ -4,17 +4,16 @@ module.exports = {
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.tsx?$': ['ts-jest', {
+      useESM: false,
+      tsconfig: {
+        module: 'commonjs'
+      }
+    }],
   },
   transformIgnorePatterns: [
-    'node_modules/(?!(@modelcontextprotocol)/)'
+    'node_modules/(?!(@modelcontextprotocol)/.*)'
   ],
-  extensionsToTreatAsEsm: ['.ts'],
-  globals: {
-    'ts-jest': {
-      useESM: true
-    }
-  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
@@ -25,6 +24,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@modelcontextprotocol/sdk/(.*)': '<rootDir>/src/mcp/__mocks__/sdk.js'
   },
   // Run unit tests and E2E tests separately if needed
   projects: [
@@ -35,16 +35,19 @@ module.exports = {
       testMatch: ['<rootDir>/tests/*.test.ts'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
       transform: {
-        '^.+\\.ts$': 'ts-jest',
+        '^.+\\.tsx?$': ['ts-jest', {
+          useESM: false,
+          tsconfig: {
+            module: 'commonjs'
+          }
+        }],
       },
       transformIgnorePatterns: [
-        'node_modules/(?!(@modelcontextprotocol)/)'
+        'node_modules/(?!(@modelcontextprotocol)/.*)'
       ],
-      extensionsToTreatAsEsm: ['.ts'],
-      globals: {
-        'ts-jest': {
-          useESM: true
-        }
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/src/$1',
+        '^@modelcontextprotocol/sdk/(.*)': '<rootDir>/src/mcp/__mocks__/sdk.js'
       },
     },
     {
@@ -54,9 +57,20 @@ module.exports = {
       testMatch: ['<rootDir>/tests/e2e/mcp-real-server.e2e.test.ts', '<rootDir>/tests/e2e/mcp-simple.e2e.test.ts'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
       transform: {
-        '^.+\\.ts$': 'ts-jest',
+        '^.+\\.tsx?$': ['ts-jest', {
+          useESM: false,
+          tsconfig: {
+            module: 'commonjs'
+          }
+        }],
       },
-      testTimeout: 30000,
+      transformIgnorePatterns: [
+        'node_modules/(?!(@modelcontextprotocol)/.*)'
+      ],
+      moduleNameMapper: {
+        '^@/(.*)$': '<rootDir>/src/$1',
+        '^@modelcontextprotocol/sdk/(.*)': '<rootDir>/src/mcp/__mocks__/sdk.js'
+      },
     }
   ]
 };

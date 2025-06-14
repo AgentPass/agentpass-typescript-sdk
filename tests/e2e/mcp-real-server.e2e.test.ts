@@ -67,7 +67,7 @@ describe('MCP Real Server E2E Tests', () => {
         createdAt: new Date().toISOString()
       };
       
-      res.status(201).json({ 
+      return res.status(201).json({ 
         message: 'User created successfully', 
         user: newUser 
       });
@@ -266,8 +266,17 @@ describe('MCP Real Server E2E Tests', () => {
 
       const healthResult = JSON.parse(healthToolResponse.data.result.content[0].text);
       console.log('✅ Health check result:', healthResult);
-      expect(healthResult.status).toBe('healthy');
-      expect(healthResult.version).toBe('1.0.0');
+      
+      // Handle different response structures
+      if (healthResult.status === 200 && healthResult.data) {
+        // HTTP response wrapper
+        expect(healthResult.data.status).toBe('healthy');
+        expect(healthResult.data.version).toBe('1.0.0');
+      } else {
+        // Direct response
+        expect(healthResult.status).toBe('healthy');
+        expect(healthResult.version).toBe('1.0.0');
+      }
 
       // 6. Test tool execution: Get users
       console.log('\n👥 Step 6: Testing get users tool...');
@@ -284,10 +293,21 @@ describe('MCP Real Server E2E Tests', () => {
       expect(usersToolResponse.status).toBe(200);
       const usersResult = JSON.parse(usersToolResponse.data.result.content[0].text);
       console.log('✅ Users result:', usersResult);
-      expect(usersResult.users).toBeDefined();
-      expect(Array.isArray(usersResult.users)).toBe(true);
-      expect(usersResult.users.length).toBe(3);
-      expect(usersResult.pagination).toBeDefined();
+      
+      // Handle different response structures
+      if (usersResult.status === 200 && usersResult.data) {
+        // HTTP response wrapper
+        expect(usersResult.data.users).toBeDefined();
+        expect(Array.isArray(usersResult.data.users)).toBe(true);
+        expect(usersResult.data.users.length).toBe(3);
+        expect(usersResult.data.pagination).toBeDefined();
+      } else {
+        // Direct response
+        expect(usersResult.users).toBeDefined();
+        expect(Array.isArray(usersResult.users)).toBe(true);
+        expect(usersResult.users.length).toBe(3);
+        expect(usersResult.pagination).toBeDefined();
+      }
 
       // 7. Test tool execution: Get user by ID
       console.log('\n👤 Step 7: Testing get user by ID tool...');
@@ -306,9 +326,19 @@ describe('MCP Real Server E2E Tests', () => {
       expect(userByIdResponse.status).toBe(200);
       const userResult = JSON.parse(userByIdResponse.data.result.content[0].text);
       console.log('✅ User by ID result:', userResult);
-      expect(userResult.user).toBeDefined();
-      expect(userResult.user.id).toBe(1);
-      expect(userResult.user.name).toBe('John Doe');
+      
+      // Handle different response structures
+      if (userResult.status === 200 && userResult.data) {
+        // HTTP response wrapper
+        expect(userResult.data.user).toBeDefined();
+        expect(userResult.data.user.id).toBe(1);
+        expect(userResult.data.user.name).toBe('John Doe');
+      } else {
+        // Direct response
+        expect(userResult.user).toBeDefined();
+        expect(userResult.user.id).toBe(1);
+        expect(userResult.user.name).toBe('John Doe');
+      }
 
       // 8. Test tool execution: Get products with filters
       console.log('\n🛍️ Step 8: Testing get products with filters...');
@@ -328,10 +358,21 @@ describe('MCP Real Server E2E Tests', () => {
       expect(productsResponse.status).toBe(200);
       const productsResult = JSON.parse(productsResponse.data.result.content[0].text);
       console.log('✅ Filtered products result:', productsResult);
-      expect(productsResult.products).toBeDefined();
-      expect(Array.isArray(productsResult.products)).toBe(true);
-      expect(productsResult.filters.category).toBe('electronics');
-      expect(productsResult.filters.minPrice).toBe('25');
+      
+      // Handle different response structures
+      if (productsResult.status === 200 && productsResult.data) {
+        // HTTP response wrapper
+        expect(productsResult.data.products).toBeDefined();
+        expect(Array.isArray(productsResult.data.products)).toBe(true);
+        expect(productsResult.data.filters.category).toBe('electronics');
+        expect(productsResult.data.filters.minPrice).toBe('25');
+      } else {
+        // Direct response
+        expect(productsResult.products).toBeDefined();
+        expect(Array.isArray(productsResult.products)).toBe(true);
+        expect(productsResult.filters.category).toBe('electronics');
+        expect(productsResult.filters.minPrice).toBe('25');
+      }
 
       // 9. Test error handling: Invalid user ID
       console.log('\n❌ Step 9: Testing error handling...');

@@ -15,7 +15,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AgentPass } from '../core/AgentPass';
 import { MiddlewareRunner } from '../middleware/MiddlewareRunner';
-import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import { randomUUID } from 'crypto';
 import * as http from 'http';
 
@@ -27,7 +27,7 @@ class AgentPassMCPServer implements MCPServer {
   
   private server: Server;
   private serverTransport: StdioServerTransport | null = null;
-  private httpServer: any = null; // For HTTP/SSE transports
+  private httpServer: http.Server | null = null; // For HTTP/SSE transports
   private isServerRunning = false;
   private mcpTools: MCPTool[] = [];
   private baseUrl?: string;
