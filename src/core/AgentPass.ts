@@ -19,6 +19,11 @@ import { EventEmitter } from './EventEmitter';
 import { BaseDiscoverer } from '../discovery/base/BaseDiscoverer';
 import { ExpressDiscoverer } from '../discovery/express/ExpressDiscoverer';
 import { OpenAPIDiscoverer } from '../discovery/openapi/OpenAPIDiscoverer';
+import { KoaDiscoverer } from '../discovery/koa/KoaDiscoverer';
+import { FastifyDiscoverer } from '../discovery/fastify/FastifyDiscoverer';
+import { NestJSDiscoverer } from '../discovery/nestjs/NestJSDiscoverer';
+import { NextJSDiscoverer } from '../discovery/nextjs/NextJSDiscoverer';
+import { URLDiscoverer } from '../discovery/url/URLDiscoverer';
 import { MCPGenerator } from '../mcp/MCPGenerator';
 import { EVENT_TYPES, SUPPORTED_FRAMEWORKS } from './constants';
 // Mock uuid for compilation
@@ -45,7 +50,12 @@ export class AgentPass extends EventEmitter {
    */
   private initializeDefaultDiscoverers(): void {
     this.discoverers.set(SUPPORTED_FRAMEWORKS.EXPRESS, new ExpressDiscoverer());
+    this.discoverers.set(SUPPORTED_FRAMEWORKS.FASTIFY, new FastifyDiscoverer());
+    this.discoverers.set(SUPPORTED_FRAMEWORKS.KOA, new KoaDiscoverer());
+    this.discoverers.set(SUPPORTED_FRAMEWORKS.NESTJS, new NestJSDiscoverer());
+    this.discoverers.set(SUPPORTED_FRAMEWORKS.NEXTJS, new NextJSDiscoverer());
     this.discoverers.set(SUPPORTED_FRAMEWORKS.OPENAPI, new OpenAPIDiscoverer());
+    this.discoverers.set('url', new URLDiscoverer());
   }
 
   /**

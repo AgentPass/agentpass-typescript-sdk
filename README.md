@@ -71,12 +71,37 @@ await agentpass.discover({
 });
 ```
 
-### Discovery from OpenAPI Spec
+### Framework-Specific Discovery
 
 ```typescript
-// Load from OpenAPI specification
+// Express.js
+await agentpass.discover({ app: expressApp, framework: 'express' });
+
+// Fastify
+await agentpass.discover({ app: fastifyApp, framework: 'fastify' });
+
+// Koa with koa-router
+await agentpass.discover({ app: koaApp, framework: 'koa' });
+
+// NestJS
+await agentpass.discover({ app: nestApp, framework: 'nestjs' });
+
+// Next.js API routes
+await agentpass.discover({ 
+  framework: 'nextjs',
+  custom: { directory: './pages/api', baseUrl: '/api' }
+});
+
+// OpenAPI/Swagger
 await agentpass.discover({
   openapi: './openapi.json' // or URL or object
+});
+
+// Live URL crawling
+await agentpass.discover({
+  url: 'https://api.example.com',
+  strategy: 'crawl',
+  crawl: { maxDepth: 2, maxPages: 20 }
 });
 ```
 
@@ -140,13 +165,15 @@ agentpass.use('post', async (context, response) => {
 
 AgentPass supports all major Node.js frameworks:
 
-| Framework | Status | Discovery Method |
-|-----------|--------|------------------|
-| Express.js | ✅ Full | Introspection |
-| Fastify | ✅ Full | Introspection |
-| Koa | ✅ Full | Introspection |
-| NestJS | 🚧 Planned | Introspection |
-| Next.js | 🚧 Planned | File System |
+| Framework | Status | Discovery Method | Features |
+|-----------|--------|------------------|----------|
+| **Express.js** | ✅ Full | Route Introspection | Middleware analysis, nested routers, parameter detection |
+| **Fastify** | ✅ Full | Schema Introspection | JSON schema validation, route metadata, performance optimized |
+| **Koa** | ✅ Full | Router Analysis | koa-router support, middleware chain analysis, async/await |
+| **NestJS** | ✅ Full | Decorator Analysis | TypeScript decorators, dependency injection, modular architecture |
+| **Next.js** | ✅ Full | File System Scanning | API routes discovery, dynamic routes, App/Pages router |
+| **OpenAPI/Swagger** | ✅ Full | Specification Parsing | Complete OpenAPI 3.0 support, schema generation |
+| **URL Crawling** | ✅ Full | Live Endpoint Discovery | Intelligent crawling, response analysis, parameter inference |
 
 ## 🔌 Plugins
 
