@@ -53,6 +53,7 @@ export const SUPPORTED_FRAMEWORKS = {
   KOA: 'koa',
   NESTJS: 'nestjs',
   NEXTJS: 'nextjs',
+  OPENAPI: 'openapi',
 } as const;
 
 // Middleware Phases

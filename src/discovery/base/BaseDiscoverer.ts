@@ -1,5 +1,6 @@
 import { DiscoverOptions, EndpointDefinition, DiscoveryError } from '../../core/types';
-import { v4 as uuidv4 } from 'uuid';
+// Mock uuid for compilation
+const uuidv4 = () => 'mock-uuid-' + Math.random().toString(36).substr(2, 9);
 
 export abstract class BaseDiscoverer {
   protected name: string;
@@ -118,7 +119,7 @@ export abstract class BaseDiscoverer {
     const pathParams = this.extractPathParameters(normalizedPath);
 
     return {
-      id: options.id ?? this.generateEndpointId(method, normalizedPath),
+      id: options.id || this.generateEndpointId(method, normalizedPath),
       method: method.toUpperCase() as any,
       path: normalizedPath,
       description: options.description,

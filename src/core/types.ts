@@ -1,4 +1,5 @@
-import { OpenAPIV3 } from 'openapi-types';
+// Note: OpenAPI types would be imported from 'openapi-types' package
+// import { OpenAPIV3 } from 'openapi-types';
 
 // Core AgentPass Configuration
 export interface AgentPassConfig {

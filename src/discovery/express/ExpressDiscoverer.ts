@@ -5,6 +5,7 @@ import { SUPPORTED_FRAMEWORKS } from '../../core/constants';
 interface ExpressRoute {
   path: string;
   method: string;
+  methods: Record<string, boolean>;
   stack: any[];
 }
 
@@ -212,7 +213,7 @@ export class ExpressDiscoverer extends BaseDiscoverer {
         // Query parameters (if detected)
         ...routeInfo.queryParams.map(param => ({
           name: param.name,
-          type: param.type,
+          type: param.type as 'string' | 'number' | 'boolean' | 'object' | 'array',
           required: param.required || false,
           in: 'query' as const,
           description: param.description || `Query parameter: ${param.name}`,

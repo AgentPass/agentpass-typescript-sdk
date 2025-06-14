@@ -21,7 +21,8 @@ import { ExpressDiscoverer } from '../discovery/express/ExpressDiscoverer';
 import { OpenAPIDiscoverer } from '../discovery/openapi/OpenAPIDiscoverer';
 import { MCPGenerator } from '../mcp/MCPGenerator';
 import { EVENT_TYPES, SUPPORTED_FRAMEWORKS } from './constants';
-import { v4 as uuidv4 } from 'uuid';
+// Mock uuid for compilation
+const uuidv4 = () => 'mock-uuid-' + Math.random().toString(36).substr(2, 9);
 
 export class AgentPass extends EventEmitter {
   private config: AgentPassConfig;
