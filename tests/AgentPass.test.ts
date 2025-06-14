@@ -67,8 +67,9 @@ describe('AgentPass', () => {
       agentpass.defineEndpoint(endpoint);
       
       const endpoints = agentpass.getEndpoints();
-      expect(endpoints[0].id).toBeDefined();
-      expect(typeof endpoints[0].id).toBe('string');
+      expect(endpoints).toHaveLength(1);
+      expect(endpoints[0]?.id).toBeDefined();
+      expect(typeof endpoints[0]?.id).toBe('string');
     });
   });
 

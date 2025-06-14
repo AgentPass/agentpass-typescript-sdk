@@ -13,7 +13,7 @@ global.console = {
 jest.setTimeout(30000);
 
 // Global test utilities
-global.testUtils = {
+(global as any).testUtils = {
   createMockContext: (overrides = {}) => ({
     endpoint: {
       id: 'test-endpoint',

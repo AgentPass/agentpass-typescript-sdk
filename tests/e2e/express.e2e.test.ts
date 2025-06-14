@@ -39,7 +39,7 @@ describe('Express E2E Tests', () => {
       const endpoints = agentpass.getEndpoints();
       expect(endpoints).toHaveLength(1);
       
-      const endpoint = endpoints[0];
+      const endpoint = endpoints[0]!;
       expect(endpoint.method).toBe('GET');
       expect(endpoint.path).toBe('/users');
       expect(endpoint.description).toContain('GET /users');
@@ -87,8 +87,8 @@ describe('Express E2E Tests', () => {
       const userEndpoint = endpoints.find(e => e.path === '/users/{id}');
       expect(userEndpoint).toBeDefined();
       expect(userEndpoint?.parameters).toHaveLength(1);
-      expect(userEndpoint?.parameters[0].name).toBe('id');
-      expect(userEndpoint?.parameters[0].in).toBe('path');
+      expect(userEndpoint?.parameters?.[0]?.name).toBe('id');
+      expect(userEndpoint?.parameters?.[0]?.in).toBe('path');
 
       const userPostEndpoint = endpoints.find(e => e.path === '/users/{userId}/posts/{postId}');
       expect(userPostEndpoint).toBeDefined();

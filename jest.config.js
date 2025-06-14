@@ -14,21 +14,30 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  testTimeout: 30000, // Increase timeout for E2E tests
   // Run unit tests and E2E tests separately if needed
   projects: [
     {
+      preset: 'ts-jest',
+      testEnvironment: 'node',
       displayName: 'unit',
       testMatch: ['<rootDir>/tests/*.test.ts'],
-      testTimeout: 10000,
+      setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+      transform: {
+        '^.+\\.ts$': 'ts-jest',
+      },
     },
     {
+      preset: 'ts-jest',
+      testEnvironment: 'node', 
       displayName: 'e2e',
       testMatch: ['<rootDir>/tests/e2e/*.e2e.test.ts'],
-      testTimeout: 30000,
+      setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
+      transform: {
+        '^.+\\.ts$': 'ts-jest',
+      },
     }
   ]
 };
