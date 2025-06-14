@@ -31,7 +31,7 @@ export class ApiKeyAuth {
       
       // Fall back to query parameter
       if (!apiKey && this.config.query) {
-        apiKey = query[this.config.query];
+        apiKey = query[this.config.query] as string | undefined;
       }
       
       if (!apiKey) {

@@ -258,18 +258,18 @@ describe('OpenAPI E2E Tests', () => {
       const getUserByIdEndpoint = endpoints.find(e => e.method === 'GET' && e.path === '/users/{id}');
       expect(getUserByIdEndpoint).toBeDefined();
       expect(getUserByIdEndpoint?.parameters).toHaveLength(1);
-      expect(getUserByIdEndpoint?.parameters[0].name).toBe('id');
-      expect(getUserByIdEndpoint?.parameters[0].in).toBe('path');
+      expect(getUserByIdEndpoint?.parameters?.[0]?.name).toBe('id');
+      expect(getUserByIdEndpoint?.parameters?.[0]?.in).toBe('path');
 
       const getUserPostsEndpoint = endpoints.find(e => e.method === 'GET' && e.path === '/users/{userId}/posts');
       expect(getUserPostsEndpoint).toBeDefined();
       expect(getUserPostsEndpoint?.parameters).toHaveLength(3); // userId (path), limit (query), offset (query)
 
       // Check parameter types
-      const pathParam = getUserPostsEndpoint?.parameters.find(p => p.in === 'path');
+      const pathParam = getUserPostsEndpoint?.parameters?.find(p => p.in === 'path');
       expect(pathParam?.name).toBe('userId');
       
-      const queryParams = getUserPostsEndpoint?.parameters.filter(p => p.in === 'query');
+      const queryParams = getUserPostsEndpoint?.parameters?.filter(p => p.in === 'query');
       expect(queryParams).toHaveLength(2);
       expect(queryParams?.map(p => p.name)).toContain('limit');
       expect(queryParams?.map(p => p.name)).toContain('offset');
@@ -393,17 +393,17 @@ describe('OpenAPI E2E Tests', () => {
       expect(endpoints).toHaveLength(1);
 
       const endpoint = endpoints[0];
-      expect(endpoint.method).toBe('GET');
-      expect(endpoint.path).toBe('/users');
-      expect(endpoint.parameters).toHaveLength(4);
+      expect(endpoint?.method).toBe('GET');
+      expect(endpoint?.path).toBe('/users');
+      expect(endpoint?.parameters).toHaveLength(4);
 
       // Check parameter details
-      const pageParam = endpoint.parameters.find(p => p.name === 'page');
+      const pageParam = endpoint?.parameters?.find(p => p.name === 'page');
       expect(pageParam).toBeDefined();
       expect(pageParam?.in).toBe('query');
       expect(pageParam?.type).toBe('number');
 
-      const sortParam = endpoint.parameters.find(p => p.name === 'sort');
+      const sortParam = endpoint?.parameters?.find(p => p.name === 'sort');
       expect(sortParam).toBeDefined();
       expect(sortParam?.schema?.enum).toEqual(['name', 'email', 'created_at']);
     });
@@ -643,7 +643,7 @@ describe('OpenAPI E2E Tests', () => {
         toolNaming: (endpoint) => {
           // Use operationId if available, otherwise generate from method + path
           if (endpoint.metadata?.operationId) {
-            return endpoint.metadata.operationId;
+            return endpoint.metadata.operationId as string;
           }
           const method = endpoint.method.toLowerCase();
           const pathParts = endpoint.path.split('/').filter(Boolean);
@@ -676,7 +676,7 @@ describe('OpenAPI E2E Tests', () => {
       expect(showPetEndpoint?.method).toBe('GET');
       expect(showPetEndpoint?.path).toBe('/pets/{petId}');
       expect(showPetEndpoint?.parameters).toHaveLength(1);
-      expect(showPetEndpoint?.parameters[0].name).toBe('petId');
+      expect(showPetEndpoint?.parameters?.[0]?.name).toBe('petId');
     });
   });
 

@@ -1,28 +1,37 @@
 import { BaseDiscoverer } from '../base/BaseDiscoverer';
-import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod } from '../../core/types';
+import { DiscoverOptions, EndpointDefinition, DiscoveryError, RequestBodyDefinition, ResponseDefinition } from '../../core/types';
 import { SUPPORTED_FRAMEWORKS } from '../../core/constants';
 
 interface KoaRoute {
   path: string;
   methods: string[];
   name?: string;
-  middleware: any[];
+  middleware: ((...args: unknown[]) => unknown)[];
   paramNames: string[];
   regexp: RegExp;
 }
 
 interface KoaRouter {
   stack: KoaLayer[];
-  opts: any;
+  opts: Record<string, unknown>;
+  methods?: string[];
 }
 
 interface KoaLayer {
   path: string;
   methods: string[];
-  middleware: any[];
+  middleware: ((...args: unknown[]) => unknown)[];
   name?: string;
   paramNames: string[];
   regexp: RegExp;
+  stack?: ((...args: unknown[]) => unknown)[];
+}
+
+interface KoaApp {
+  use: (...args: unknown[]) => unknown;
+  middleware: ((...args: unknown[]) => unknown)[];
+  listen: (...args: unknown[]) => unknown;
+  context: unknown;
 }
 
 export class KoaDiscoverer extends BaseDiscoverer {
@@ -52,7 +61,7 @@ export class KoaDiscoverer extends BaseDiscoverer {
     try {
       this.log('info', 'Starting Koa endpoint discovery');
       
-      const routes = this.extractRoutes(options.app);
+      const routes = this.extractRoutes(options.app as KoaApp);
       const endpoints = this.convertRoutesToEndpoints(routes);
       
       this.log('info', `Discovered ${endpoints.length} endpoints from Koa app`);
@@ -69,21 +78,22 @@ export class KoaDiscoverer extends BaseDiscoverer {
   /**
    * Check if the given object is a Koa app
    */
-  private isKoaApp(app: any): boolean {
+  private isKoaApp(app: unknown): app is KoaApp {
+    const koaApp = app as KoaApp;
     return (
-      app &&
-      typeof app === 'object' &&
-      typeof app.use === 'function' &&
-      Array.isArray(app.middleware) &&
-      typeof app.listen === 'function' &&
-      app.context !== undefined
+      koaApp &&
+      typeof koaApp === 'object' &&
+      typeof koaApp.use === 'function' &&
+      Array.isArray(koaApp.middleware) &&
+      typeof koaApp.listen === 'function' &&
+      koaApp.context !== undefined
     );
   }
 
   /**
    * Extract routes from Koa app
    */
-  private extractRoutes(app: any): KoaRoute[] {
+  private extractRoutes(app: KoaApp): KoaRoute[] {
     const routes: KoaRoute[] = [];
     
     if (!app.middleware || !Array.isArray(app.middleware)) {
@@ -107,29 +117,31 @@ export class KoaDiscoverer extends BaseDiscoverer {
   /**
    * Check if middleware is a Koa router
    */
-  private isKoaRouter(middleware: any): boolean {
+  private isKoaRouter(middleware: unknown): middleware is { router: KoaRouter } {
+    const routerMiddleware = middleware as { router: KoaRouter };
     return (
-      middleware &&
-      middleware.router &&
-      Array.isArray(middleware.router.stack)
+      routerMiddleware &&
+      routerMiddleware.router &&
+      Array.isArray(routerMiddleware.router.stack)
     );
   }
 
   /**
    * Check if middleware is a router layer
    */
-  private isKoaRouterLayer(middleware: any): boolean {
+  private isKoaRouterLayer(middleware: unknown): middleware is KoaRouter {
+    const routerLayer = middleware as KoaRouter;
     return (
-      middleware &&
-      Array.isArray(middleware.stack) &&
-      middleware.methods
+      routerLayer &&
+      Array.isArray(routerLayer.stack) &&
+      (routerLayer as KoaRouter).methods !== undefined
     );
   }
 
   /**
    * Extract routes from koa-router middleware
    */
-  private extractRoutesFromRouter(routerMiddleware: any, routes: KoaRoute[]): void {
+  private extractRoutesFromRouter(routerMiddleware: { router: KoaRouter }, routes: KoaRoute[]): void {
     const router = routerMiddleware.router;
     
     if (!router || !router.stack) {
@@ -144,7 +156,7 @@ export class KoaDiscoverer extends BaseDiscoverer {
   /**
    * Extract routes from router layer
    */
-  private extractRoutesFromRouterLayer(routerLayer: any, routes: KoaRoute[]): void {
+  private extractRoutesFromRouterLayer(routerLayer: KoaRouter, routes: KoaRoute[]): void {
     if (!routerLayer.stack) {
       return;
     }
@@ -157,7 +169,7 @@ export class KoaDiscoverer extends BaseDiscoverer {
   /**
    * Extract route information from a router layer
    */
-  private extractRouteFromLayer(layer: any, routes: KoaRoute[]): void {
+  private extractRouteFromLayer(layer: KoaLayer, routes: KoaRoute[]): void {
     if (!layer.path || !layer.methods) {
       return;
     }
@@ -232,8 +244,8 @@ export class KoaDiscoverer extends BaseDiscoverer {
       summary: routeInfo.summary,
       tags: routeInfo.tags,
       parameters: [...pathParams, ...queryParams],
-      requestBody: routeInfo.requestBody,
-      responses: routeInfo.responses || {
+      requestBody: routeInfo.requestBody as RequestBodyDefinition | undefined,
+      responses: (routeInfo.responses || {
         '200': {
           description: 'Successful response',
           schema: { type: 'object' },
@@ -258,7 +270,7 @@ export class KoaDiscoverer extends BaseDiscoverer {
             },
           },
         },
-      },
+      }) as ResponseDefinition,
       metadata: {
         ...routeInfo.metadata,
         koaRoute: {
@@ -275,14 +287,14 @@ export class KoaDiscoverer extends BaseDiscoverer {
   /**
    * Analyze route middleware to extract metadata
    */
-  private analyzeRouteMiddleware(middleware: any[]): {
+  private analyzeRouteMiddleware(middleware: ((...args: unknown[]) => unknown)[]): {
     description?: string;
     summary?: string;
     tags?: string[];
     queryParams: Array<{ name: string; type: string; required?: boolean; description?: string }>;
-    requestBody?: any;
-    responses?: any;
-    metadata?: Record<string, any>;
+    requestBody?: unknown;
+    responses?: unknown;
+    metadata?: Record<string, unknown>;
   } {
     const result = {
       queryParams: [] as Array<{ name: string; type: string; required?: boolean; description?: string }>,

@@ -1,23 +1,30 @@
 import { BaseDiscoverer } from '../base/BaseDiscoverer';
-import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod } from '../../core/types';
+import { DiscoverOptions, EndpointDefinition, DiscoveryError, RequestBodyDefinition, ResponseDefinition } from '../../core/types';
 import { SUPPORTED_FRAMEWORKS } from '../../core/constants';
 
 interface ExpressRoute {
   path: string;
   method: string;
   methods: Record<string, boolean>;
-  stack: any[];
+  stack: ExpressLayer[];
 }
 
 interface ExpressLayer {
   regexp: RegExp;
   route?: ExpressRoute;
   name: string;
-  handle: any;
+  handle: ((...args: unknown[]) => unknown) | ExpressRouter;
 }
 
 interface ExpressRouter {
   stack: ExpressLayer[];
+}
+
+interface ExpressApplication {
+  use: (...args: unknown[]) => unknown;
+  get: (...args: unknown[]) => unknown;
+  post: (...args: unknown[]) => unknown;
+  _router: ExpressRouter;
 }
 
 export class ExpressDiscoverer extends BaseDiscoverer {
@@ -48,12 +55,12 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     try {
       this.log('info', 'Starting Express endpoint discovery');
       
-      const routes = this.extractRoutes(options.app);
+      const routes = this.extractRoutes(options.app as ExpressApplication);
       const endpoints = this.convertRoutesToEndpoints(routes);
       
       this.log('info', `Discovered ${endpoints.length} endpoints from Express app`);
       
-      return this.filterEndpoints(endpoints, options.include, options.exclude);
+      return Promise.resolve(this.filterEndpoints(endpoints, options.include, options.exclude));
     } catch (error) {
       this.log('error', 'Failed to discover Express endpoints', { error });
       throw new DiscoveryError(
@@ -65,23 +72,34 @@ export class ExpressDiscoverer extends BaseDiscoverer {
   /**
    * Check if the given object is an Express app
    */
-  private isExpressApp(app: any): boolean {
+  private isExpressApp(app: unknown): app is ExpressApplication {
+    const expressApp = app as ExpressApplication;
     return (
-      app &&
-      typeof app === 'object' &&
-      typeof app.use === 'function' &&
-      typeof app.get === 'function' &&
-      typeof app.post === 'function' &&
-      app._router &&
-      Array.isArray(app._router.stack)
+      expressApp &&
+      typeof expressApp === 'object' &&
+      typeof expressApp.use === 'function' &&
+      typeof expressApp.get === 'function' &&
+      typeof expressApp.post === 'function' &&
+      expressApp._router &&
+      Array.isArray(expressApp._router.stack)
     );
   }
 
   /**
    * Extract routes from Express app
    */
-  private extractRoutes(app: any): ExpressRoute[] {
+  private extractRoutes(app: ExpressApplication): ExpressRoute[] {
     const routes: ExpressRoute[] = [];
+    
+    // Force Express to create router if it doesn't exist
+    if (!app._router) {
+      // Call a method that would create the router
+      try {
+        (app as any).lazyrouter?.();
+      } catch (e) {
+        // Ignore errors
+      }
+    }
     
     if (!app._router || !app._router.stack) {
       this.log('warn', 'No router or routes found in Express app');
@@ -97,7 +115,9 @@ export class ExpressDiscoverer extends BaseDiscoverer {
    * Recursively extract routes from Express router stack
    */
   private extractRoutesFromStack(stack: ExpressLayer[], basePath: string, routes: ExpressRoute[]): void {
+    this.log('debug', `Processing stack with ${stack.length} layers at basePath: ${basePath}`);
     for (const layer of stack) {
+      this.log('debug', `Processing layer: ${layer.name}, hasRoute: ${!!layer.route}, hasHandle: ${!!layer.handle}, handleType: ${typeof layer.handle}`);
       if (layer.route) {
         // Direct route
         const route = layer.route;
@@ -116,18 +136,22 @@ export class ExpressDiscoverer extends BaseDiscoverer {
             stack: route.stack || []
           });
         }
-      } else if (layer.name === 'router' && layer.handle && layer.handle.stack) {
+      } else if ((layer.name === 'router' || layer.name === 'app') && layer.handle && 'stack' in layer.handle && Array.isArray(layer.handle.stack)) {
         // Nested router
         const nestedPath = this.extractPathFromRegex(layer.regexp);
         const fullNestedPath = this.combinePaths(basePath, nestedPath);
         
-        this.extractRoutesFromStack(layer.handle.stack, fullNestedPath, routes);
-      } else if (layer.name === 'app' && layer.handle && layer.handle._router) {
+        this.log('debug', `Found nested router at path: ${nestedPath} -> ${fullNestedPath}`);
+        const router = layer.handle as ExpressRouter;
+        this.log('debug', `Nested router has ${router.stack.length} routes`);
+        this.extractRoutesFromStack(router.stack, fullNestedPath, routes);
+      } else if (layer.name === 'app' && layer.handle && '_router' in layer.handle) {
         // Sub-application
         const subPath = this.extractPathFromRegex(layer.regexp);
         const fullSubPath = this.combinePaths(basePath, subPath);
         
-        this.extractRoutesFromStack(layer.handle._router.stack, fullSubPath, routes);
+        const app = layer.handle as unknown as ExpressApplication;
+        this.extractRoutesFromStack(app._router.stack, fullSubPath, routes);
       }
     }
   }
@@ -143,9 +167,9 @@ export class ExpressDiscoverer extends BaseDiscoverer {
       // Extract path from regex like /^\/api(?:\/(?=$))?$/i
       const match = regexpStr.match(/\^\\?\/(.*?)\(?[\\\$\)]/);
       if (match && match[1]) {
-        let path = match[1]
+        const path = match[1]
           .replace(/\\\//g, '/') // Replace escaped slashes
-          .replace(/\?\?\:/g, '') // Remove non-capturing groups
+          .replace(/\?\?:/g, '') // Remove non-capturing groups
           .replace(/\$.*$/, '') // Remove end anchors
           .replace(/\(.*?\)/g, '') // Remove groups
           .replace(/\?\+\*/g, ''); // Remove quantifiers
@@ -193,12 +217,13 @@ export class ExpressDiscoverer extends BaseDiscoverer {
    */
   private convertRouteToEndpoint(route: ExpressRoute): EndpointDefinition {
     const normalizedPath = this.normalizePath(route.path);
+    const openAPIPath = this.convertToOpenAPIPath(normalizedPath);
     const pathParams = this.extractPathParameters(normalizedPath);
     
     // Analyze route handlers for additional information
     const routeInfo = this.analyzeRouteHandlers(route.stack);
     
-    return this.createBaseEndpoint(route.method, normalizedPath, {
+    const endpoint = this.createBaseEndpoint(route.method, normalizedPath, {
       description: routeInfo.description || `${route.method} ${normalizedPath}`,
       summary: routeInfo.summary,
       tags: routeInfo.tags,
@@ -256,6 +281,11 @@ export class ExpressDiscoverer extends BaseDiscoverer {
         },
       },
     });
+
+    // Convert path to OpenAPI format
+    endpoint.path = openAPIPath;
+    
+    return endpoint;
   }
 
   /**
@@ -266,15 +296,21 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     summary?: string;
     tags?: string[];
     queryParams: Array<{ name: string; type: string; required?: boolean; description?: string }>;
-    requestBody?: any;
-    responses?: any;
-    metadata?: Record<string, any>;
+    requestBody?: RequestBodyDefinition;
+    responses?: ResponseDefinition;
+    metadata?: Record<string, unknown>;
   } {
     const result = {
       queryParams: [] as Array<{ name: string; type: string; required?: boolean; description?: string }>,
       tags: [] as string[],
-      metadata: {} as Record<string, any>,
+      metadata: {} as Record<string, unknown>,
     };
+
+    // Analyze middleware and handlers
+    const middlewareInfo = this.analyzeMiddleware(stack);
+    if (middlewareInfo.length > 0) {
+      result.metadata.middleware = middlewareInfo;
+    }
 
     for (const layer of stack) {
       if (layer.handle) {
@@ -288,6 +324,57 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     }
 
     return result;
+  }
+
+  /**
+   * Analyze middleware in route stack
+   */
+  private analyzeMiddleware(stack: any[]): Array<{ name: string; type: string }> {
+    const middleware: Array<{ name: string; type: string }> = [];
+    
+    // Skip the last handler (which is the actual route handler)
+    // The middleware are typically all handlers except the last one
+    for (let i = 0; i < stack.length - 1; i++) {
+      const layer = stack[i];
+      if (layer.handle && typeof layer.handle === 'function') {
+        const name = layer.handle.name || layer.name || 'anonymous';
+        const type = this.identifyMiddlewareType(layer.handle.toString(), name);
+        
+        middleware.push({
+          name,
+          type
+        });
+      }
+    }
+    
+    return middleware;
+  }
+
+  /**
+   * Identify the type of middleware based on function code and name
+   */
+  private identifyMiddlewareType(handlerStr: string, name: string): string {
+    // Common middleware patterns
+    if (name.toLowerCase().includes('auth') || handlerStr.includes('authenticate') || handlerStr.includes('authorization')) {
+      return 'authentication';
+    }
+    if (name.toLowerCase().includes('log') || handlerStr.includes('console.log') || handlerStr.includes('logger')) {
+      return 'logging';
+    }
+    if (name.toLowerCase().includes('cors') || handlerStr.includes('Access-Control')) {
+      return 'cors';
+    }
+    if (name.toLowerCase().includes('rate') || name.toLowerCase().includes('limit')) {
+      return 'rate-limiting';
+    }
+    if (handlerStr.includes('req.body') || handlerStr.includes('express.json')) {
+      return 'body-parser';
+    }
+    if (handlerStr.includes('validate') || handlerStr.includes('joi') || handlerStr.includes('schema')) {
+      return 'validation';
+    }
+    
+    return 'middleware';
   }
 
   /**

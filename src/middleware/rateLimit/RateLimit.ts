@@ -22,7 +22,7 @@ export class RateLimit {
 
   constructor(config: RateLimitConfig) {
     this.config = {
-      keyGenerator: (context) => context.ip || context.user?.id || 'anonymous',
+      keyGenerator: (context) => context.ip || (context.user as Record<string, string>)?.id || 'anonymous',
       message: 'Too many requests',
       ...config,
     };

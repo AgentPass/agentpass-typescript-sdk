@@ -5,28 +5,221 @@ import {
   MiddlewareContext,
   MCPError,
   HTTPMethod,
-  JSONSchema
+  JSONSchema,
+  MCPServer
 } from '../core/types';
-// Note: These would be real imports in a full implementation
-// import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-// import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-// import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+// Note: SSE is deprecated in favor of HTTP
+// import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AgentPass } from '../core/AgentPass';
 import { MiddlewareRunner } from '../middleware/MiddlewareRunner';
+import axios, { AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import { randomUUID } from 'crypto';
+import * as http from 'http';
 
-// Placeholder implementations for compilation
-const Server = class { 
-  constructor(info: any, config: any) {}
-  setRequestHandler(schema: any, handler: any) {}
-  async connect(options: any) {}
-};
-const ListToolsRequestSchema = {};
-const CallToolRequestSchema = {};
-const axios = { 
-  isAxiosError: (err: any) => false,
-  default: async (config: any) => ({ status: 200, statusText: 'OK', headers: {}, data: {} })
-};
-const uuidv4 = () => 'mock-uuid-' + Math.random().toString(36).substr(2, 9);
+// AgentPass MCP Server Implementation
+class AgentPassMCPServer implements MCPServer {
+  public info: { name: string; version: string; description?: string };
+  public capabilities: { tools?: boolean; resources?: boolean; prompts?: boolean; logging?: boolean };
+  public transport: { type: 'stdio' | 'sse' | 'http'; config?: Record<string, unknown> };
+  
+  private server: Server;
+  private serverTransport: StdioServerTransport | null = null;
+  private httpServer: any = null; // For HTTP/SSE transports
+  private isServerRunning = false;
+  private mcpTools: MCPTool[] = [];
+  private baseUrl?: string;
+  
+  constructor(
+    server: Server,
+    info: { name: string; version: string; description?: string },
+    capabilities: { tools?: boolean; resources?: boolean; prompts?: boolean; logging?: boolean },
+    transportType: 'stdio' | 'sse' | 'http',
+    transportConfig?: Record<string, unknown>,
+    tools: MCPTool[] = [],
+    baseUrl?: string
+  ) {
+    this.server = server;
+    this.info = info;
+    this.capabilities = capabilities;
+    this.transport = { type: transportType, config: transportConfig };
+    this.mcpTools = tools;
+    this.baseUrl = baseUrl;
+  }
+  
+  async start(): Promise<void> {
+    if (this.isServerRunning) {
+      throw new MCPError('MCP server is already running');
+    }
+    
+    switch (this.transport.type) {
+      case 'stdio':
+        this.serverTransport = new StdioServerTransport();
+        await this.server.connect(this.serverTransport);
+        break;
+      case 'http':
+        await this.startHTTPServer();
+        break;
+      case 'sse':
+        throw new MCPError('SSE transport is deprecated. Please use HTTP transport instead.');
+      default:
+        throw new MCPError(`Unsupported transport type: ${this.transport.type}`);
+    }
+    
+    this.isServerRunning = true;
+  }
+
+  private async startHTTPServer(): Promise<void> {
+    const port = (this.transport.config?.port as number) ?? 3000;
+    const host = (this.transport.config?.host as string) || 'localhost';
+
+    this.httpServer = http.createServer((req, res) => {
+      // Set CORS headers
+      if (this.transport.config?.cors) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      }
+
+      if (req.method === 'OPTIONS') {
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      if (req.method === 'POST' && req.url === '/mcp') {
+        this.handleMCPRequest(req, res);
+      } else {
+        res.writeHead(404);
+        res.end('Not found');
+      }
+    });
+
+    return new Promise((resolve, reject) => {
+      this.httpServer!.listen(port, host, () => {
+        resolve();
+      });
+      this.httpServer!.on('error', reject);
+    });
+  }
+
+  private async handleMCPRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+
+    req.on('end', async () => {
+      try {
+        const message = JSON.parse(body);
+        let result: any;
+
+        // Handle different MCP message types
+        if (message.method === 'tools/list') {
+          result = {
+            tools: this.mcpTools.map(tool => ({
+              name: tool.name,
+              description: tool.description,
+              inputSchema: tool.inputSchema,
+            }))
+          };
+        } else if (message.method === 'tools/call') {
+          const { name, arguments: args } = message.params;
+          
+          const tool = this.mcpTools.find(t => t.name === name);
+          if (!tool) {
+            throw new Error(`Tool not found: ${name}`);
+          }
+
+          try {
+            const mockContext: MiddlewareContext = {
+              endpoint: { id: '', method: 'GET', path: '', tags: [], parameters: [], responses: {}, metadata: {} },
+              request: { path: '', method: 'GET', headers: {}, params: {}, query: {} },
+              timestamp: new Date(),
+              requestId: randomUUID(),
+              metadata: {
+                baseUrl: this.baseUrl
+              }
+            };
+            const toolResult = await tool.handler(args || {}, mockContext);
+            
+            result = {
+              content: [
+                {
+                  type: 'text',
+                  text: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult, null, 2),
+                },
+              ],
+            };
+          } catch (error) {
+            throw new Error(
+              `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+            );
+          }
+        } else {
+          throw new Error(`Unsupported method: ${message.method}`);
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result
+        }));
+      } catch (error) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          jsonrpc: '2.0',
+          id: body ? JSON.parse(body).id : null,
+          error: {
+            code: -1,
+            message: error instanceof Error ? error.message : 'Internal error'
+          }
+        }));
+      }
+    });
+  }
+  
+  async stop(): Promise<void> {
+    if (!this.isServerRunning) {
+      return;
+    }
+    
+    if (this.serverTransport) {
+      await this.serverTransport.close();
+      this.serverTransport = null;
+    }
+    
+    if (this.httpServer) {
+      this.httpServer.close();
+      this.httpServer = null;
+    }
+    
+    this.isServerRunning = false;
+  }
+  
+  isRunning(): boolean {
+    return this.isServerRunning;
+  }
+  
+  getAddress(): string | null {
+    if (this.transport.type === 'stdio') {
+      return null; // stdio doesn't have an address
+    }
+    
+    if (this.httpServer && this.isServerRunning) {
+      const address = this.httpServer.address();
+      if (address && typeof address === 'object') {
+        const host = this.transport.config?.host || 'localhost';
+        return `http://${host}:${address.port}`;
+      }
+    }
+    
+    return null;
+  }
+}
 
 export class MCPGenerator {
   private agentpass: AgentPass;
@@ -40,7 +233,7 @@ export class MCPGenerator {
   /**
    * Generate MCP server from endpoints
    */
-  async generate(endpoints: EndpointDefinition[], options: MCPOptions = {}): Promise<any> {
+  async generate(endpoints: EndpointDefinition[], options: MCPOptions = {}): Promise<MCPServer> {
     if (endpoints.length === 0) {
       throw new MCPError('No endpoints provided for MCP server generation');
     }
@@ -56,28 +249,61 @@ export class MCPGenerator {
         logging: false,
         ...options.capabilities,
       },
+      transport: options.transport || 'stdio',
       ...options,
     };
+
+    // Validate transport type
+    if (config.transport === 'sse') {
+      throw new MCPError('SSE transport is deprecated. Please use HTTP transport instead.');
+    }
 
     // Convert endpoints to MCP tools
     const tools = this.createMCPTools(endpoints, options);
 
-    // Create MCP server
+    // Create MCP server with proper capabilities format
+    const capabilities: any = {};
+    if (config.capabilities.tools) capabilities.tools = {};
+    if (config.capabilities.resources) capabilities.resources = {};
+    if (config.capabilities.prompts) capabilities.prompts = {};
+    if (config.capabilities.logging) capabilities.logging = {};
+
     const server = new Server(
       {
         name: config.name,
         version: config.version,
-        description: config.description,
       },
       {
-        capabilities: config.capabilities,
+        capabilities,
       }
     );
 
     // Register tool handlers
     this.registerToolHandlers(server, tools);
 
-    return server;
+    // Create transport configuration
+    const transportConfig: Record<string, unknown> = {};
+    if (config.port !== undefined) transportConfig.port = config.port;
+    if (config.host) transportConfig.host = config.host;
+    if (config.cors !== undefined) transportConfig.cors = config.cors;
+    if (config.auth) transportConfig.auth = config.auth;
+
+    // Create AgentPass MCP Server wrapper
+    const mcpServer = new AgentPassMCPServer(
+      server,
+      {
+        name: config.name,
+        version: config.version,
+        description: config.description,
+      },
+      config.capabilities,
+      config.transport,
+      Object.keys(transportConfig).length > 0 ? transportConfig : undefined,
+      tools,
+      config.baseUrl
+    );
+
+    return mcpServer;
   }
 
   /**
@@ -91,7 +317,7 @@ export class MCPGenerator {
         const tool = this.createMCPTool(endpoint, options);
         tools.push(tool);
       } catch (error) {
-        console.warn(`Failed to create MCP tool for endpoint ${endpoint.id}:`, error);
+        console.error(`Failed to create MCP tool for endpoint ${endpoint.id}:`, error);
       }
     }
 
@@ -110,7 +336,7 @@ export class MCPGenerator {
       name: toolName,
       description,
       inputSchema,
-      handler: this.createToolHandler(endpoint),
+      handler: this.createToolHandler(endpoint, options),
     };
   }
 
@@ -224,15 +450,15 @@ export class MCPGenerator {
   /**
    * Create tool handler for endpoint
    */
-  private createToolHandler(endpoint: EndpointDefinition) {
-    return async (args: any, context?: any): Promise<any> => {
-      const requestId = uuidv4();
+  private createToolHandler(endpoint: EndpointDefinition, options: MCPOptions) {
+    return async (args: Record<string, unknown>, context: MiddlewareContext): Promise<unknown> => {
+      const requestId = randomUUID();
       const middlewareContext: MiddlewareContext = {
         endpoint,
         request: {
           path: endpoint.path,
           method: endpoint.method,
-          headers: args.headers || {},
+          headers: (args.headers as Record<string, string>) || {},
           params: this.extractPathParams(endpoint.path, args),
           query: this.extractQueryParams(args),
           body: args.body,
@@ -242,6 +468,7 @@ export class MCPGenerator {
         metadata: {
           mcpTool: true,
           originalArgs: args,
+          baseUrl: options.baseUrl,
           ...context,
         },
       };
@@ -261,11 +488,7 @@ export class MCPGenerator {
         return processedResponse;
       } catch (error) {
         // Run error middleware
-        try {
-          await this.middlewareRunner.runError(middlewareContext, error as Error);
-        } catch (middlewareError) {
-          throw middlewareError;
-        }
+        await this.middlewareRunner.runError(middlewareContext, error as Error);
         throw error;
       }
     };
@@ -274,7 +497,7 @@ export class MCPGenerator {
   /**
    * Register tool handlers with MCP server
    */
-  private registerToolHandlers(server: any, tools: MCPTool[]): void {
+  private registerToolHandlers(server: Server, tools: MCPTool[]): void {
     // List tools handler
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
@@ -282,12 +505,12 @@ export class MCPGenerator {
           name: tool.name,
           description: tool.description,
           inputSchema: tool.inputSchema,
-        })),
+        }))
       };
     });
 
     // Call tool handler
-    server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       
       const tool = tools.find(t => t.name === name);
@@ -300,7 +523,7 @@ export class MCPGenerator {
           endpoint: { id: '', method: 'GET', path: '', tags: [], parameters: [], responses: {}, metadata: {} },
           request: { path: '', method: 'GET', headers: {}, params: {}, query: {} },
           timestamp: new Date(),
-          requestId: '',
+          requestId: randomUUID(),
           metadata: {}
         };
         const result = await tool.handler(args || {}, mockContext);
@@ -328,11 +551,11 @@ export class MCPGenerator {
   private async makeHttpRequest(
     endpoint: EndpointDefinition,
     context: MiddlewareContext
-  ): Promise<any> {
-    // This is a placeholder - in a real implementation, you would need to know
-    // the base URL of the service. This could be passed in configuration or
-    // discovered from the middleware context.
-    const baseUrl = context.metadata.baseUrl || 'http://localhost:3000';
+  ): Promise<{ status: number; statusText: string; headers: Record<string, string>; data: unknown }> {
+    // Get base URL from context metadata or use default
+    const baseUrl = typeof context.metadata.baseUrl === 'string' 
+      ? context.metadata.baseUrl 
+      : 'http://localhost:3000';
     
     // Replace path parameters
     let url = endpoint.path;
@@ -343,8 +566,8 @@ export class MCPGenerator {
 
     const fullUrl = baseUrl + url;
 
-    const config: any = {
-      method: endpoint.method,
+    const config: AxiosRequestConfig = {
+      method: endpoint.method as any,
       url: fullUrl,
       headers: {
         'Content-Type': 'application/json',
@@ -353,6 +576,7 @@ export class MCPGenerator {
       },
       params: context.request.query,
       timeout: 30000,
+      validateStatus: () => true, // Accept all HTTP status codes
     };
 
     if (context.request.body && ['POST', 'PUT', 'PATCH'].includes(endpoint.method)) {
@@ -360,14 +584,14 @@ export class MCPGenerator {
     }
 
     try {
-      const response = await axios.default(config);
+      const response = await axios(config);
       return {
         status: response.status,
         statusText: response.statusText,
-        headers: response.headers,
+        headers: response.headers as Record<string, string>,
         data: response.data,
       };
-    } catch (error: any) {
+    } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new MCPError(
           `HTTP request failed: ${error.response?.status || 'unknown'} ${error.response?.statusText || 'error'}`,
@@ -389,8 +613,8 @@ export class MCPGenerator {
   /**
    * Extract path parameters from arguments
    */
-  private extractPathParams(path: string, args: any): Record<string, any> {
-    const params: Record<string, any> = {};
+  private extractPathParams(path: string, args: Record<string, unknown>): Record<string, unknown> {
+    const params: Record<string, unknown> = {};
     
     // Extract parameter names from path
     const pathParamRegex = /[{:]([a-zA-Z_][a-zA-Z0-9_]*)[}]?/g;
@@ -398,7 +622,7 @@ export class MCPGenerator {
     
     while ((match = pathParamRegex.exec(path)) !== null) {
       const paramName = match[1];
-      if (paramName && args[paramName] !== undefined) {
+      if (paramName && paramName in args && args[paramName] !== undefined) {
         params[paramName] = args[paramName];
       }
     }
@@ -409,8 +633,8 @@ export class MCPGenerator {
   /**
    * Extract query parameters from arguments
    */
-  private extractQueryParams(args: any): Record<string, any> {
-    const query: Record<string, any> = {};
+  private extractQueryParams(args: Record<string, unknown>): Record<string, unknown> {
+    const query: Record<string, unknown> = {};
     
     // Any arg that's not a path param, body, or headers becomes a query param
     const excludeKeys = ['body', 'headers'];

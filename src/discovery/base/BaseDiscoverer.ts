@@ -184,9 +184,9 @@ export abstract class BaseDiscoverer {
   /**
    * Log discovery progress
    */
-  protected log(level: 'info' | 'warn' | 'error' | 'debug', message: string, data?: any): void {
+  protected log(level: 'info' | 'warn' | 'error' | 'debug', message: string, data?: unknown): void {
     const timestamp = new Date().toISOString();
     const logData = data ? ` ${JSON.stringify(data)}` : '';
-    console.log(`[${timestamp}] [${this.name}] ${level.toUpperCase()}: ${message}${logData}`);
+    console.error(`[${timestamp}] [${this.name}] ${level.toUpperCase()}: ${message}${logData}`);
   }
 }

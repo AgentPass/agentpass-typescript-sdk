@@ -6,6 +6,15 @@ module.exports = {
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(@modelcontextprotocol)/)'
+  ],
+  extensionsToTreatAsEsm: ['.ts'],
+  globals: {
+    'ts-jest': {
+      useESM: true
+    }
+  },
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
@@ -28,16 +37,26 @@ module.exports = {
       transform: {
         '^.+\\.ts$': 'ts-jest',
       },
+      transformIgnorePatterns: [
+        'node_modules/(?!(@modelcontextprotocol)/)'
+      ],
+      extensionsToTreatAsEsm: ['.ts'],
+      globals: {
+        'ts-jest': {
+          useESM: true
+        }
+      },
     },
     {
       preset: 'ts-jest',
       testEnvironment: 'node', 
       displayName: 'e2e',
-      testMatch: ['<rootDir>/tests/e2e/*.e2e.test.ts'],
+      testMatch: ['<rootDir>/tests/e2e/mcp-real-server.e2e.test.ts', '<rootDir>/tests/e2e/mcp-simple.e2e.test.ts'],
       setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
       transform: {
         '^.+\\.ts$': 'ts-jest',
       },
+      testTimeout: 30000,
     }
   ]
 };

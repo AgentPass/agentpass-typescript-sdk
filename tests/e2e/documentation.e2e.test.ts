@@ -36,8 +36,8 @@ describe('Documentation Examples E2E Tests', () => {
       // Verify it works
       const endpoints = agentpass.getEndpoints();
       expect(endpoints).toHaveLength(1);
-      expect(endpoints[0].method).toBe('GET');
-      expect(endpoints[0].path).toBe('/users/{id}');
+      expect(endpoints[0]?.method).toBe('GET');
+      expect(endpoints[0]?.path).toBe('/users/{id}');
 
       // Generate and start MCP server
       const mcpServer = await agentpass.generateMCPServer();
@@ -132,17 +132,13 @@ describe('Documentation Examples E2E Tests', () => {
         version: '1.0.0',
         onDiscover: async (endpoints: any[]) => {
           // Enhance endpoints with OpenAPI metadata
-          return endpoints.map(endpoint => ({
-            ...endpoint,
-            enhanced: true
-          }));
+          endpoints.forEach(endpoint => {
+            (endpoint as any).enhanced = true;
+          });
         },
         onGenerate: async (mcpConfig: any) => {
           // Modify MCP configuration
-          return {
-            ...mcpConfig,
-            enhanced: true
-          };
+          (mcpConfig as any).enhanced = true;
         }
       };
 
@@ -216,7 +212,7 @@ describe('Documentation Examples E2E Tests', () => {
       });
 
       // Discover endpoints
-      await agentpass.discover({ app });
+      await agentpass.discover({ app, framework: 'express' });
 
       // Add business logic validation as shown in docs
       agentpass.use('pre', async (context: any) => {
@@ -299,7 +295,7 @@ describe('Documentation Examples E2E Tests', () => {
       // Test various discovery options formats
       const options = [
         { app, framework: 'express' },
-        { app, include: ['**/test'], exclude: ['**/admin'] },
+        { app, framework: 'express', include: ['**/test'], exclude: ['**/admin'] },
         { app, strategy: 'auto' }
       ];
 

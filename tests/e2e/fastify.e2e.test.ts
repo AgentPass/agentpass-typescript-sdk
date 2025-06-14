@@ -39,8 +39,8 @@ describe('Fastify E2E Tests', () => {
       expect(endpoints).toHaveLength(1);
       
       const endpoint = endpoints[0];
-      expect(endpoint.method).toBe('GET');
-      expect(endpoint.path).toBe('/users');
+      expect(endpoint?.method).toBe('GET');
+      expect(endpoint?.path).toBe('/users');
     });
 
     it('should discover multiple HTTP methods', async () => {

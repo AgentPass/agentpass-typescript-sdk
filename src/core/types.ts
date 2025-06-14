@@ -6,7 +6,7 @@ export interface AgentPassConfig {
   name: string;
   version: string;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 // HTTP Methods
@@ -20,7 +20,7 @@ export interface ParameterDefinition {
   description?: string;
   in: 'path' | 'query' | 'header' | 'body';
   schema?: JSONSchema;
-  example?: any;
+  example?: unknown;
 }
 
 // JSON Schema
@@ -30,8 +30,8 @@ export interface JSONSchema {
   items?: JSONSchema;
   required?: string[];
   description?: string;
-  example?: any;
-  enum?: any[];
+  example?: unknown;
+  enum?: unknown[];
   format?: string;
   minimum?: number;
   maximum?: number;
@@ -45,7 +45,7 @@ export interface ResponseDefinition {
   [statusCode: string]: {
     description?: string;
     schema?: JSONSchema;
-    example?: any;
+    example?: unknown;
     headers?: Record<string, {
       type: string;
       description?: string;
@@ -59,8 +59,8 @@ export interface RequestBodyDefinition {
   required?: boolean;
   content: {
     [mediaType: string]: {
-      schema: JSONSchema;
-      example?: any;
+      schema?: JSONSchema;
+      example?: unknown;
     };
   };
 }
@@ -76,7 +76,7 @@ export interface EndpointDefinition {
   parameters?: ParameterDefinition[];
   requestBody?: RequestBodyDefinition;
   responses?: ResponseDefinition;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   security?: SecurityRequirement[];
   rateLimit?: RateLimitConfig;
   cache?: CacheConfig;
@@ -108,8 +108,8 @@ export interface CacheConfig {
 // Discovery Options
 export interface DiscoverOptions {
   // Framework discovery
-  app?: any;
-  framework?: 'express' | 'fastify' | 'koa' | 'nestjs' | 'nextjs' | string;
+  app?: unknown;
+  framework?: 'express' | 'fastify' | 'koa' | 'nestjs' | 'nextjs';
   
   // URL discovery
   url?: string;
@@ -120,7 +120,7 @@ export interface DiscoverOptions {
   strategy?: 'openapi' | 'crawl' | 'auto' | 'introspect';
   
   // OpenAPI specific
-  openapi?: string | any;
+  openapi?: string | Record<string, unknown>;
   
   // Crawling options
   crawl?: CrawlOptions;
@@ -130,7 +130,7 @@ export interface DiscoverOptions {
   exclude?: string[];
   
   // Custom options
-  custom?: Record<string, any>;
+  custom?: Record<string, unknown>;
 }
 
 // Crawling Options
@@ -150,24 +150,24 @@ export interface MiddlewareContext {
     path: string;
     method: HTTPMethod;
     headers: Record<string, string>;
-    params: Record<string, any>;
-    query: Record<string, any>;
-    body?: any;
+    params: Record<string, unknown>;
+    query: Record<string, unknown>;
+    body?: unknown;
   };
-  response?: any;
-  user?: any;
-  client?: any;
+  response?: unknown;
+  user?: unknown;
+  client?: unknown;
   ip?: string;
   timestamp: Date;
   requestId: string;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   cacheKey?: string;
 }
 
 // Middleware Function Types
 export type PreMiddleware = (context: MiddlewareContext) => Promise<void>;
-export type PostMiddleware = (context: MiddlewareContext, response: any) => Promise<any>;
-export type AuthMiddleware = (context: MiddlewareContext) => Promise<any>;
+export type PostMiddleware = (context: MiddlewareContext, response: unknown) => Promise<unknown>;
+export type AuthMiddleware = (context: MiddlewareContext) => Promise<unknown>;
 export type AuthzMiddleware = (context: MiddlewareContext) => Promise<boolean>;
 export type ErrorMiddleware = (context: MiddlewareContext, error: Error) => Promise<never>;
 
@@ -194,8 +194,17 @@ export interface MCPOptions {
     prompts?: boolean;
     logging?: boolean;
   };
-  transport?: 'stdio' | 'sse' | 'websocket';
-  metadata?: Record<string, any>;
+  transport?: 'stdio' | 'sse' | 'http';
+  port?: number; // For SSE/HTTP transports
+  host?: string; // For SSE/HTTP transports
+  cors?: boolean; // For HTTP transport
+  auth?: {
+    type: 'bearer' | 'basic' | 'custom';
+    credentials?: string;
+    validator?: (token: string) => Promise<boolean>;
+  };
+  baseUrl?: string; // Base URL for HTTP requests to discovered endpoints
+  metadata?: Record<string, unknown>;
   toolNaming?: (endpoint: EndpointDefinition) => string;
   toolDescription?: (endpoint: EndpointDefinition) => string;
   maxConcurrentRequests?: number;
@@ -207,7 +216,30 @@ export interface MCPTool {
   name: string;
   description: string;
   inputSchema: JSONSchema;
-  handler: (args: any, context: MiddlewareContext) => Promise<any>;
+  handler: (args: Record<string, unknown>, context: MiddlewareContext) => Promise<unknown>;
+}
+
+// MCP Server Interface
+export interface MCPServer {
+  info: {
+    name: string;
+    version: string;
+    description?: string;
+  };
+  capabilities: {
+    tools?: boolean;
+    resources?: boolean;
+    prompts?: boolean;
+    logging?: boolean;
+  };
+  transport: {
+    type: 'stdio' | 'sse' | 'http';
+    config?: Record<string, unknown>;
+  };
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  isRunning(): boolean;
+  getAddress?(): string | null; // For HTTP/SSE transports
 }
 
 // Plugin Interface
@@ -217,10 +249,10 @@ export interface Plugin {
   description?: string;
   
   // Lifecycle hooks
-  onDiscover?: (endpoints: EndpointDefinition[], agentpass: any) => Promise<void>;
-  onGenerate?: (mcpConfig: MCPOptions, agentpass: any) => Promise<void>;
-  onStart?: (mcpServer: any, agentpass: any) => Promise<void>;
-  onStop?: (mcpServer: any, agentpass: any) => Promise<void>;
+  onDiscover?: (endpoints: EndpointDefinition[], agentpass: unknown) => Promise<void>;
+  onGenerate?: (mcpConfig: MCPOptions, agentpass: unknown) => Promise<void>;
+  onStart?: (mcpServer: unknown, agentpass: unknown) => Promise<void>;
+  onStop?: (mcpServer: unknown, agentpass: unknown) => Promise<void>;
   
   // Middleware
   middleware?: MiddlewareConfig;
@@ -229,7 +261,7 @@ export interface Plugin {
   transformers?: EndpointTransformer[];
   
   // Custom options
-  options?: Record<string, any>;
+  options?: Record<string, unknown>;
 }
 
 // Base Discoverer Interface
@@ -243,7 +275,7 @@ export class AgentPassError extends Error {
   constructor(
     message: string,
     public code: string = 'AGENTPASS_ERROR',
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'AgentPassError';
@@ -251,21 +283,21 @@ export class AgentPassError extends Error {
 }
 
 export class DiscoveryError extends AgentPassError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'DISCOVERY_ERROR', details);
     this.name = 'DiscoveryError';
   }
 }
 
 export class MCPError extends AgentPassError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'MCP_ERROR', details);
     this.name = 'MCPError';
   }
 }
 
 export class MiddlewareError extends AgentPassError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 'MIDDLEWARE_ERROR', details);
     this.name = 'MiddlewareError';
   }
@@ -284,7 +316,7 @@ export type RequiredField<T, K extends keyof T> = T & Required<Pick<T, K>>;
 export interface AgentPassEvent {
   type: string;
   timestamp: Date;
-  data?: any;
+  data?: unknown;
 }
 
 export interface DiscoveryEvent extends AgentPassEvent {
@@ -310,8 +342,8 @@ export interface MCPEvent extends AgentPassEvent {
   type: 'mcp:start' | 'mcp:request' | 'mcp:response' | 'mcp:error';
   data?: {
     tool?: string;
-    request?: any;
-    response?: any;
+    request?: Record<string, unknown>;
+    response?: Record<string, unknown>;
     error?: Error;
     duration?: number;
   };

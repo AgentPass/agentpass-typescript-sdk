@@ -1,11 +1,6 @@
 import {
   MiddlewareConfig,
   MiddlewareContext,
-  PreMiddleware,
-  PostMiddleware,
-  AuthMiddleware,
-  AuthzMiddleware,
-  ErrorMiddleware,
   MiddlewareError,
 } from '../core/types';
 
@@ -19,9 +14,9 @@ export class MiddlewareRunner {
   /**
    * Run authentication middleware
    */
-  async runAuth(context: MiddlewareContext): Promise<any> {
+  async runAuth(context: MiddlewareContext): Promise<unknown> {
     if (!this.middleware.auth || this.middleware.auth.length === 0) {
-      return;
+      return undefined;
     }
 
     try {
@@ -31,6 +26,7 @@ export class MiddlewareRunner {
           context.user = result;
         }
       }
+      return context.user;
     } catch (error) {
       throw new MiddlewareError(
         `Authentication failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -85,7 +81,7 @@ export class MiddlewareRunner {
   /**
    * Run post-response middleware
    */
-  async runPost(context: MiddlewareContext, response: any): Promise<any> {
+  async runPost(context: MiddlewareContext, response: unknown): Promise<unknown> {
     if (!this.middleware.post || this.middleware.post.length === 0) {
       return response;
     }
@@ -114,17 +110,12 @@ export class MiddlewareRunner {
       throw error;
     }
 
-    try {
-      for (const errorMiddleware of this.middleware.error) {
-        await errorMiddleware(context, error);
-      }
-      
-      // If we get here, the error middleware didn't throw, so we throw the original error
-      throw error;
-    } catch (middlewareError) {
-      // Error middleware threw, so throw that error instead
-      throw middlewareError;
+    for (const errorMiddleware of this.middleware.error) {
+      await errorMiddleware(context, error);
     }
+    
+    // If we get here, the error middleware didn't throw, so we throw the original error
+    throw error;
   }
 
   /**

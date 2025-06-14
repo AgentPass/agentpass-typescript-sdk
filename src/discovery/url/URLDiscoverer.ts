@@ -1,12 +1,12 @@
 import { BaseDiscoverer } from '../base/BaseDiscoverer';
-import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod } from '../../core/types';
+import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod, JSONSchema } from '../../core/types';
 
 interface CrawlResult {
   url: string;
   method: string;
   statusCode: number;
   responseHeaders: Record<string, string>;
-  responseBody?: any;
+  responseBody?: unknown;
   contentType?: string;
   error?: string;
 }
@@ -16,7 +16,7 @@ interface DiscoveredEndpoint {
   method: string;
   parameters?: string[];
   headers?: Record<string, string>;
-  examples?: any[];
+  examples?: unknown[];
 }
 
 export class URLDiscoverer extends BaseDiscoverer {
@@ -70,7 +70,13 @@ export class URLDiscoverer extends BaseDiscoverer {
    */
   private async crawlEndpoints(
     baseUrl: string,
-    crawlOptions: any,
+    crawlOptions: {
+      maxDepth: number;
+      maxPages: number;
+      timeout: number;
+      followRedirects: boolean;
+      userAgent?: string;
+    },
     discoverOptions: DiscoverOptions
   ): Promise<EndpointDefinition[]> {
     const endpoints: EndpointDefinition[] = [];
@@ -133,7 +139,10 @@ export class URLDiscoverer extends BaseDiscoverer {
   private async testEndpoint(
     url: string,
     method: HTTPMethod,
-    crawlOptions: any,
+    crawlOptions: {
+      timeout: number;
+      userAgent?: string;
+    },
     discoverOptions: DiscoverOptions
   ): Promise<CrawlResult | null> {
     try {
@@ -178,7 +187,7 @@ export class URLDiscoverer extends BaseDiscoverer {
     method: HTTPMethod,
     headers: Record<string, string>,
     timeout: number
-  ): Promise<{ status: number; headers: Record<string, string>; body: any }> {
+  ): Promise<{ status: number; headers: Record<string, string>; body: unknown }> {
     // In a real implementation, this would use fetch() or axios
     // For now, return mock response based on URL patterns
     
@@ -200,7 +209,7 @@ export class URLDiscoverer extends BaseDiscoverer {
   /**
    * Generate mock response based on URL pattern
    */
-  private generateMockResponse(url: string, method: HTTPMethod): any {
+  private generateMockResponse(url: string, method: HTTPMethod): unknown {
     const path = new URL(url).pathname;
     
     // Common API patterns
@@ -281,7 +290,7 @@ export class URLDiscoverer extends BaseDiscoverer {
         responses: {
           [result.statusCode.toString()]: {
             description: `Response from crawling`,
-            schema: responseSchema,
+            schema: responseSchema as JSONSchema,
           },
         },
         metadata: {
@@ -389,7 +398,7 @@ export class URLDiscoverer extends BaseDiscoverer {
   /**
    * Infer JSON schema from response body
    */
-  private inferSchemaFromResponse(body: any, contentType?: string): any {
+  private inferSchemaFromResponse(body: unknown, contentType?: string): unknown {
     if (!body) return { type: 'object' };
     
     if (contentType?.includes('application/json')) {
@@ -411,7 +420,7 @@ export class URLDiscoverer extends BaseDiscoverer {
   /**
    * Infer JSON schema from object structure
    */
-  private inferSchemaFromObject(obj: any): any {
+  private inferSchemaFromObject(obj: unknown): unknown {
     if (obj === null) return { type: 'null' };
     if (typeof obj === 'string') return { type: 'string' };
     if (typeof obj === 'number') return { type: 'number' };
@@ -449,7 +458,7 @@ export class URLDiscoverer extends BaseDiscoverer {
   /**
    * Extract links from response body for further crawling
    */
-  private extractLinksFromResponse(body: any, baseUrl: string): string[] {
+  private extractLinksFromResponse(body: unknown, baseUrl: string): string[] {
     const links: string[] = [];
     
     try {
@@ -473,7 +482,7 @@ export class URLDiscoverer extends BaseDiscoverer {
   /**
    * Extract links from JSON object
    */
-  private extractLinksFromObject(obj: any, links: string[], baseUrl: string): void {
+  private extractLinksFromObject(obj: unknown, links: string[], baseUrl: string): void {
     if (!obj || typeof obj !== 'object') return;
     
     for (const value of Object.values(obj)) {

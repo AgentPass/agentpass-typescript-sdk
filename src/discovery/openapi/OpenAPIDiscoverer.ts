@@ -28,9 +28,116 @@ const path = {
 };
 
 // Placeholder types for compilation
-type OpenAPIV3 = any;
-const SwaggerParser = { validate: async (spec: any) => spec };
-const axios = { get: async (url: string, options?: any) => ({ data: {} }), isAxiosError: (err: any) => false };
+interface OpenAPIV3Document {
+  openapi?: string;
+  swagger?: string;
+  paths: Record<string, PathItem>;
+  servers?: Server[];
+}
+
+interface Server {
+  url: string;
+  description?: string;
+}
+
+interface PathItem {
+  get?: Operation;
+  post?: Operation;
+  put?: Operation;
+  delete?: Operation;
+  patch?: Operation;
+  head?: Operation;
+  options?: Operation;
+  parameters?: Parameter[];
+}
+
+interface Operation {
+  operationId?: string;
+  summary?: string;
+  description?: string;
+  tags?: string[];
+  parameters?: Parameter[];
+  requestBody?: RequestBody | Reference;
+  responses: Responses;
+  security?: SecurityRequirement[];
+  deprecated?: boolean;
+  externalDocs?: ExternalDocumentation;
+  servers?: Server[];
+}
+
+interface Parameter {
+  name: string;
+  in: 'path' | 'query' | 'header' | 'cookie';
+  required?: boolean;
+  description?: string;
+  schema?: Schema;
+  example?: string | number | boolean | object;
+}
+
+interface RequestBody {
+  description?: string;
+  required?: boolean;
+  content: Record<string, MediaType>;
+}
+
+interface MediaType {
+  schema?: Schema;
+  example?: string | number | boolean | object;
+  examples?: Record<string, Example>;
+}
+
+interface Example {
+  summary?: string;
+  description?: string;
+  value?: string | number | boolean | object;
+}
+
+interface Responses {
+  [statusCode: string]: Response | Reference;
+}
+
+interface Response {
+  description: string;
+  content?: Record<string, MediaType>;
+  headers?: Record<string, Header>;
+}
+
+interface Header {
+  description?: string;
+  required?: boolean;
+  schema?: Schema;
+}
+
+interface Schema {
+  type?: string;
+  properties?: Record<string, Schema>;
+  items?: Schema;
+  required?: string[];
+  description?: string;
+  example?: string | number | boolean | object;
+  enum?: (string | number)[];
+  format?: string;
+  minimum?: number;
+  maximum?: number;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+}
+
+interface Reference {
+  $ref: string;
+}
+
+interface SecurityRequirement {
+  [name: string]: string[];
+}
+
+interface ExternalDocumentation {
+  description?: string;
+  url: string;
+}
+const SwaggerParser = { validate: async (spec: unknown) => spec };
+const axios = { get: async (url: string, options?: unknown) => ({ data: {} }), isAxiosError: (err: unknown) => false };
 
 export class OpenAPIDiscoverer extends BaseDiscoverer {
   constructor() {
@@ -74,8 +181,8 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
   /**
    * Load OpenAPI specification from various sources
    */
-  private async loadOpenAPISpec(options: DiscoverOptions): Promise<any> {
-    let spec: any;
+  private async loadOpenAPISpec(options: DiscoverOptions): Promise<OpenAPIV3Document> {
+    let spec: unknown;
 
     if (options.openapi) {
       if (typeof options.openapi === 'string') {
@@ -97,13 +204,13 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     }
 
     // Parse and validate the spec
-    return await SwaggerParser.validate(spec);
+    return await SwaggerParser.validate(spec) as OpenAPIV3Document;
   }
 
   /**
    * Load OpenAPI spec from URL
    */
-  private async loadFromUrl(url: string, options: DiscoverOptions): Promise<any> {
+  private async loadFromUrl(url: string, options: DiscoverOptions): Promise<unknown> {
     try {
       const headers: Record<string, string> = {
         'Accept': 'application/json, application/x-yaml, text/yaml',
@@ -125,7 +232,7 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
   /**
    * Load OpenAPI spec from file
    */
-  private async loadFromFile(filePath: string): Promise<any> {
+  private async loadFromFile(filePath: string): Promise<unknown> {
     try {
       const absolutePath = path.resolve(filePath);
       
@@ -156,7 +263,7 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
   /**
    * Discover OpenAPI spec from a base URL
    */
-  private async discoverSpecFromUrl(baseUrl: string, options: DiscoverOptions): Promise<any> {
+  private async discoverSpecFromUrl(baseUrl: string, options: DiscoverOptions): Promise<OpenAPIV3Document> {
     const commonPaths = [
       '/swagger.json',
       '/swagger.yaml',
@@ -174,7 +281,7 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
         const specUrl = baseUrl + specPath;
         this.log('info', `Trying to discover OpenAPI spec at: ${specUrl}`);
         
-        const spec = await this.loadFromUrl(specUrl, options);
+        const spec = await this.loadFromUrl(specUrl, options) as OpenAPIV3Document;
         if (spec && (spec.openapi || spec.swagger)) {
           this.log('info', `Found OpenAPI spec at: ${specUrl}`);
           return spec;
@@ -191,7 +298,7 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
   /**
    * Convert OpenAPI specification to endpoint definitions
    */
-  private convertSpecToEndpoints(spec: any): EndpointDefinition[] {
+  private convertSpecToEndpoints(spec: OpenAPIV3Document): EndpointDefinition[] {
     const endpoints: EndpointDefinition[] = [];
 
     if (!spec.paths) {
@@ -199,13 +306,13 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
       return endpoints;
     }
 
-    for (const [pathPattern, pathItem] of Object.entries(spec.paths)) {
+    for (const [pathPattern, pathItem] of Object.entries(spec.paths as Record<string, unknown>)) {
       if (!pathItem) continue;
 
       const methods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options'];
 
       for (const method of methods) {
-        const operation = (pathItem as any)[method];
+        const operation = (pathItem as Record<string, unknown>)[method];
         if (!operation) continue;
 
         try {
@@ -232,39 +339,41 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
   private convertOperationToEndpoint(
     method: HTTPMethod,
     pathPattern: string,
-    operation: any,
-    pathItem: any,
-    spec: any
+    operation: unknown,
+    pathItem: unknown,
+    spec: OpenAPIV3Document
   ): EndpointDefinition {
     const normalizedPath = this.normalizePath(pathPattern);
     
     // Combine path-level and operation-level parameters
+    const pathObj = pathItem as PathItem;
+    const opObj = operation as Operation;
     const allParameters = [
-      ...(pathItem.parameters || []),
-      ...(operation.parameters || [])
+      ...(pathObj.parameters || []),
+      ...(opObj.parameters || [])
     ];
 
     const parameters = this.convertParameters(allParameters, spec);
-    const requestBody = this.convertRequestBody(operation.requestBody, spec);
-    const responses = this.convertResponses(operation.responses, spec);
+    const requestBody = this.convertRequestBody(opObj.requestBody, spec);
+    const responses = this.convertResponses(opObj.responses, spec);
 
     return this.createBaseEndpoint(method, normalizedPath, {
-      description: operation.description || operation.summary,
-      summary: operation.summary,
-      tags: operation.tags || [],
+      description: opObj.description || opObj.summary,
+      summary: opObj.summary,
+      tags: opObj.tags || [],
       parameters,
       requestBody,
       responses,
-      security: operation.security as any,
+      security: opObj.security,
       metadata: {
-        operationId: operation.operationId,
-        deprecated: operation.deprecated,
-        externalDocs: operation.externalDocs,
-        servers: operation.servers || spec.servers,
+        operationId: opObj.operationId,
+        deprecated: opObj.deprecated,
+        externalDocs: opObj.externalDocs,
+        servers: opObj.servers || spec.servers,
         openapi: {
           originalPath: pathPattern,
-          operationId: operation.operationId,
-          tags: operation.tags || [],
+          operationId: opObj.operationId,
+          tags: opObj.tags || [],
         },
       },
     });
@@ -274,21 +383,21 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
    * Convert OpenAPI parameters to parameter definitions
    */
   private convertParameters(
-    parameters: any[],
-    spec: any
+    parameters: (Parameter | Reference)[],
+    spec: OpenAPIV3Document
   ): ParameterDefinition[] {
     const result: ParameterDefinition[] = [];
 
     for (const param of parameters) {
       try {
-        const resolved = this.resolveReference(param, spec);
+        const resolved = this.resolveReference<Parameter>(param, spec);
         
         result.push({
           name: resolved.name,
           type: this.getTypeFromSchema(resolved.schema) as 'string' | 'number' | 'boolean' | 'object' | 'array',
           required: resolved.required || false,
           description: resolved.description,
-          in: resolved.in as any,
+          in: resolved.in as 'path' | 'query' | 'header' | 'body',
           schema: this.convertSchema(resolved.schema, spec),
           example: resolved.example,
         });
@@ -304,20 +413,20 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
    * Convert OpenAPI request body to request body definition
    */
   private convertRequestBody(
-    requestBody: any,
-    spec: any
+    requestBody: unknown,
+    spec: OpenAPIV3Document
   ): RequestBodyDefinition | undefined {
     if (!requestBody) return undefined;
 
     try {
-      const resolved = this.resolveReference(requestBody, spec);
+      const resolved = this.resolveReference<RequestBody>(requestBody as RequestBody | Reference, spec);
       
-      const content: Record<string, any> = {};
+      const content: Record<string, { schema?: JSONSchema; example?: string | number | boolean | object }> = {};
       
       for (const [mediaType, mediaTypeObject] of Object.entries(resolved.content)) {
         content[mediaType] = {
-          schema: this.convertSchema((mediaTypeObject as any).schema, spec),
-          example: (mediaTypeObject as any).example || (mediaTypeObject as any).examples,
+          schema: this.convertSchema(mediaTypeObject.schema, spec),
+          example: mediaTypeObject.example || mediaTypeObject.examples,
         };
       }
 
@@ -336,14 +445,14 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
    * Convert OpenAPI responses to response definitions
    */
   private convertResponses(
-    responses: any,
-    spec: any
+    responses: Responses,
+    spec: OpenAPIV3Document
   ): ResponseDefinition {
     const result: ResponseDefinition = {};
 
     for (const [statusCode, response] of Object.entries(responses)) {
       try {
-        const resolved = this.resolveReference(response, spec);
+        const resolved = this.resolveReference<Response>(response, spec);
         
         let schema: JSONSchema | undefined;
         
@@ -351,8 +460,9 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
           // Try to get schema from common content types
           const contentTypes = ['application/json', 'application/xml', 'text/plain'];
           for (const contentType of contentTypes) {
-            if ((resolved.content[contentType] as any)?.schema) {
-              schema = this.convertSchema((resolved.content[contentType] as any).schema, spec);
+            const mediaType = resolved.content[contentType];
+            if (mediaType?.schema) {
+              schema = this.convertSchema(mediaType.schema, spec);
               break;
             }
           }
@@ -360,8 +470,8 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
           // If no common content type found, use the first available
           if (!schema) {
             const firstContent = Object.values(resolved.content)[0];
-            if ((firstContent as any)?.schema) {
-              schema = this.convertSchema((firstContent as any).schema, spec);
+            if (firstContent?.schema) {
+              schema = this.convertSchema(firstContent.schema, spec);
             }
           }
         }
@@ -383,14 +493,18 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
    * Convert OpenAPI headers
    */
   private convertHeaders(
-    headers: any,
-    spec: any
+    headers: unknown,
+    spec: OpenAPIV3Document
   ): Record<string, { type: string; description?: string }> {
     const result: Record<string, { type: string; description?: string }> = {};
 
-    for (const [name, header] of Object.entries(headers)) {
+    if (!headers || typeof headers !== 'object') {
+      return result;
+    }
+
+    for (const [name, header] of Object.entries(headers as Record<string, Header | Reference>)) {
       try {
-        const resolved = this.resolveReference(header, spec);
+        const resolved = this.resolveReference<Header>(header, spec);
         result[name] = {
           type: this.getTypeFromSchema(resolved.schema),
           description: resolved.description,
@@ -407,13 +521,13 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
    * Convert OpenAPI schema to JSON schema
    */
   private convertSchema(
-    schema: any,
-    spec: any
+    schema: Schema | undefined,
+    spec: OpenAPIV3Document
   ): JSONSchema | undefined {
     if (!schema) return undefined;
 
     try {
-      const resolved = this.resolveReference(schema, spec) as any;
+      const resolved = this.resolveReference<Schema>(schema, spec);
       
       const result: JSONSchema = {};
 
@@ -454,29 +568,32 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
   /**
    * Resolve OpenAPI reference
    */
-  private resolveReference(ref: any, spec: any): any {
-    if (!ref.$ref) return ref;
+  private resolveReference<T>(ref: T | Reference, spec: OpenAPIV3Document): T {
+    if (!ref || typeof ref !== 'object' || !('$ref' in ref)) return ref as T;
 
-    const parts = ref.$ref.split('/');
+    const parts = (ref as Reference).$ref.split('/');
     if (parts[0] !== '#') {
-      throw new Error(`External references not supported: ${ref.$ref}`);
+      throw new Error(`External references not supported: ${(ref as Reference).$ref}`);
     }
 
-    let result: any = spec;
+    let result: unknown = spec;
     for (let i = 1; i < parts.length; i++) {
-      result = result[parts[i]];
+      const part = parts[i];
+      if (part) {
+        result = (result as Record<string, unknown>)[part];
+      }
       if (!result) {
-        throw new Error(`Reference not found: ${ref.$ref}`);
+        throw new Error(`Reference not found: ${(ref as Reference).$ref}`);
       }
     }
 
-    return result;
+    return result as T;
   }
 
   /**
    * Get type from OpenAPI schema
    */
-  private getTypeFromSchema(schema: any): string {
+  private getTypeFromSchema(schema: Schema | undefined): string {
     if (!schema) return 'string';
 
     if ('$ref' in schema) {

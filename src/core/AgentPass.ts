@@ -3,15 +3,10 @@ import {
   DiscoverOptions,
   EndpointDefinition,
   MiddlewareConfig,
-  PreMiddleware,
-  PostMiddleware,
-  AuthMiddleware,
-  AuthzMiddleware,
-  ErrorMiddleware,
   EndpointTransformer,
   MCPOptions,
+  MCPServer,
   Plugin,
-  AgentPassError,
   DiscoveryError,
   MCPError,
 } from './types';
@@ -27,7 +22,7 @@ import { URLDiscoverer } from '../discovery/url/URLDiscoverer';
 import { MCPGenerator } from '../mcp/MCPGenerator';
 import { EVENT_TYPES, SUPPORTED_FRAMEWORKS } from './constants';
 // Mock uuid for compilation
-const uuidv4 = () => 'mock-uuid-' + Math.random().toString(36).substr(2, 9);
+const uuidv4 = (): string => 'mock-uuid-' + Math.random().toString(36).substr(2, 9);
 
 export class AgentPass extends EventEmitter {
   private config: AgentPassConfig;
@@ -162,11 +157,11 @@ export class AgentPass extends EventEmitter {
   /**
    * Add middleware to the pipeline
    */
-  use(phase: keyof MiddlewareConfig, middleware: any): void {
+  use(phase: keyof MiddlewareConfig, middleware: unknown): void {
     if (!this.middleware[phase]) {
       this.middleware[phase] = [];
     }
-    (this.middleware[phase] as any[]).push(middleware);
+    (this.middleware[phase] as unknown[])?.push(middleware);
   }
 
   /**
@@ -184,10 +179,12 @@ export class AgentPass extends EventEmitter {
     
     // Apply plugin middleware
     if (plugin.middleware) {
-      Object.entries(plugin.middleware).forEach(([phase, middlewares]) => {
-        if (middlewares) {
-          middlewares.forEach((middleware: any) => {
-            this.use(phase as keyof MiddlewareConfig, middleware);
+      const entries = Object.entries(plugin.middleware) as Array<[keyof MiddlewareConfig, unknown[]]>;
+      entries.forEach(([phase, middlewares]) => {
+        if (middlewares && Array.isArray(middlewares)) {
+          middlewares.forEach((middleware) => {
+            // Type assertion is safe here because we know the middleware structure from the plugin
+            this.use(phase, middleware as never);
           });
         }
       });
@@ -204,7 +201,7 @@ export class AgentPass extends EventEmitter {
   /**
    * Generate MCP server
    */
-  async generateMCPServer(options: MCPOptions = {}): Promise<any> {
+  async generateMCPServer(options: MCPOptions = {}): Promise<MCPServer> {
     try {
       if (this.endpoints.size === 0) {
         throw new MCPError('No endpoints discovered. Run discover() first.');
@@ -293,7 +290,7 @@ export class AgentPass extends EventEmitter {
 
     // Auto-detect based on app instance
     if (options.app) {
-      for (const [name, discoverer] of this.discoverers) {
+      for (const [, discoverer] of this.discoverers) {
         if (discoverer.supports(options)) {
           return discoverer;
         }

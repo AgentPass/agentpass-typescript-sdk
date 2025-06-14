@@ -38,7 +38,7 @@ pnpm add agentpass @modelcontextprotocol/sdk
 ### Basic Usage
 
 ```typescript
-import { AgentPass } from '@agentpass/typescript-sdk';
+import { AgentPass } from 'agentpass';
 import express from 'express';
 
 // Your existing Express app
@@ -56,9 +56,53 @@ const agentpass = new AgentPass({
 // Auto-discover endpoints
 await agentpass.discover({ app, framework: 'express' });
 
-// Generate and start MCP server
-const mcpServer = await agentpass.generateMCPServer();
-await mcpServer.start({ transport: 'stdio' });
+// Generate MCP server
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio', // or 'http' for HTTP server
+  baseUrl: 'http://localhost:3000' // Where your API runs
+});
+
+// Start the MCP server
+await mcpServer.start();
+```
+
+### HTTP Transport (for web clients)
+
+```typescript
+// Generate HTTP MCP server
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'http',
+  port: 3001,
+  host: 'localhost',
+  cors: true,
+  baseUrl: 'http://localhost:3000'
+});
+
+await mcpServer.start();
+console.log(`MCP Server running at: ${mcpServer.getAddress()}`);
+
+// Test with HTTP requests
+// POST /mcp with JSON-RPC 2.0 messages
+```
+
+### stdio Transport (for Claude Desktop)
+
+```typescript
+// Generate stdio MCP server for Claude Desktop
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio',
+  baseUrl: 'http://localhost:3000'
+});
+
+// Add to claude_desktop_config.json:
+// {
+//   "mcpServers": {
+//     "my-api": {
+//       "command": "node",
+//       "args": ["path/to/your/mcp-server.js"]
+//     }
+//   }
+// }
 ```
 
 ### Discovery from URL
@@ -160,6 +204,132 @@ agentpass.use('post', async (context, response) => {
   };
 });
 ```
+
+## 🔧 MCP Server Configuration
+
+### Transport Types
+
+AgentPass supports multiple MCP transport types:
+
+#### stdio Transport
+Perfect for desktop applications like Claude Desktop:
+
+```typescript
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio',
+  baseUrl: 'http://localhost:3000'
+});
+
+await mcpServer.start();
+// Server communicates via stdin/stdout
+```
+
+#### HTTP Transport  
+For web clients and remote access:
+
+```typescript
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'http',
+  port: 3001,
+  host: 'localhost',
+  cors: true,
+  baseUrl: 'http://localhost:3000'
+});
+
+await mcpServer.start();
+// Server available at http://localhost:3001/mcp
+```
+
+### Custom Tool Configuration
+
+```typescript
+const mcpServer = await agentpass.generateMCPServer({
+  // Custom tool naming
+  toolNaming: (endpoint) => {
+    const method = endpoint.method.toLowerCase();
+    const resource = endpoint.path.split('/').pop();
+    return `${method}_${resource}`;
+  },
+  
+  // Custom descriptions
+  toolDescription: (endpoint) => {
+    return `${endpoint.method} ${endpoint.path} - ${endpoint.description}`;
+  },
+  
+  // Server capabilities
+  capabilities: {
+    tools: true,
+    resources: false,
+    prompts: false,
+    logging: false
+  }
+});
+```
+
+### Server Lifecycle Management
+
+```typescript
+// Check server status
+console.log(mcpServer.isRunning()); // false
+
+// Start the server
+await mcpServer.start();
+console.log(mcpServer.isRunning()); // true
+
+// Get server address (HTTP transport only)
+if (mcpServer.transport.type === 'http') {
+  console.log(mcpServer.getAddress()); // http://localhost:3001
+}
+
+// Stop the server
+await mcpServer.stop();
+console.log(mcpServer.isRunning()); // false
+```
+
+### Integration with Claude Desktop
+
+1. **Create your MCP server script**:
+
+```typescript
+// mcp-server.ts
+import { AgentPass } from 'agentpass';
+import express from 'express';
+
+const agentpass = new AgentPass({
+  name: 'my-api-mcp-server',
+  version: '1.0.0'
+});
+
+// Discover from your Express app
+await agentpass.discover({ app: myExpressApp, framework: 'express' });
+
+// Generate stdio MCP server
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio',
+  baseUrl: 'http://localhost:3000' // Your API server
+});
+
+await mcpServer.start();
+```
+
+2. **Build and configure Claude Desktop**:
+
+```bash
+# Build your TypeScript
+npm run build
+
+# Add to claude_desktop_config.json
+{
+  "mcpServers": {
+    "my-api": {
+      "command": "node",
+      "args": ["dist/mcp-server.js"]
+    }
+  }
+}
+```
+
+3. **Restart Claude Desktop** - Your API endpoints will be available as tools!
 
 ## 🎯 Framework Support
 

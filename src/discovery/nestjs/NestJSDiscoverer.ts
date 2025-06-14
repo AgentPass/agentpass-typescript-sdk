@@ -1,5 +1,5 @@
 import { BaseDiscoverer } from '../base/BaseDiscoverer';
-import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod } from '../../core/types';
+import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod, RequestBodyDefinition, ResponseDefinition } from '../../core/types';
 import { SUPPORTED_FRAMEWORKS } from '../../core/constants';
 
 interface NestJSRoute {
@@ -7,20 +7,40 @@ interface NestJSRoute {
   method: string;
   methodName: string;
   className: string;
-  handler: any;
-  metadata?: any;
-  decorators?: any[];
-  guards?: any[];
-  interceptors?: any[];
-  pipes?: any[];
-  filters?: any[];
+  handler: Function;
+  metadata?: Record<string, unknown>;
+  decorators?: unknown[];
+  guards?: unknown[];
+  interceptors?: unknown[];
+  pipes?: unknown[];
+  filters?: unknown[];
 }
 
 interface NestJSController {
   name: string;
   path: string;
   routes: NestJSRoute[];
-  metadata?: any;
+  metadata?: Record<string, unknown>;
+}
+
+interface NestJSApp {
+  get: Function;
+  listen: Function;
+  httpAdapter: unknown;
+  getHttpServer?: () => unknown;
+  constructor?: { name: string };
+}
+
+namespace Express {
+  interface Route {
+    path: string;
+    methods: Record<string, boolean>;
+    stack: unknown[];
+  }
+}
+
+interface FastifyInstance {
+  printRoutes?: Function;
 }
 
 export class NestJSDiscoverer extends BaseDiscoverer {
@@ -50,7 +70,7 @@ export class NestJSDiscoverer extends BaseDiscoverer {
     try {
       this.log('info', 'Starting NestJS endpoint discovery');
       
-      const routes = await this.extractRoutes(options.app);
+      const routes = await this.extractRoutes(options.app as NestJSApp);
       const endpoints = this.convertRoutesToEndpoints(routes);
       
       this.log('info', `Discovered ${endpoints.length} endpoints from NestJS app`);
@@ -67,23 +87,24 @@ export class NestJSDiscoverer extends BaseDiscoverer {
   /**
    * Check if the given object is a NestJS app
    */
-  private isNestJSApp(app: any): boolean {
+  private isNestJSApp(app: unknown): app is NestJSApp {
+    const nestApp = app as NestJSApp;
     return (
-      app &&
-      typeof app === 'object' &&
-      (app.constructor?.name === 'NestApplication' ||
-       app.constructor?.name === 'NestExpressApplication' ||
-       app.constructor?.name === 'NestFastifyApplication') &&
-      typeof app.get === 'function' &&
-      typeof app.listen === 'function' &&
-      app.httpAdapter !== undefined
+      nestApp &&
+      typeof nestApp === 'object' &&
+      (nestApp.constructor?.name === 'NestApplication' ||
+       nestApp.constructor?.name === 'NestExpressApplication' ||
+       nestApp.constructor?.name === 'NestFastifyApplication') &&
+      typeof nestApp.get === 'function' &&
+      typeof nestApp.listen === 'function' &&
+      nestApp.httpAdapter !== undefined
     );
   }
 
   /**
    * Extract routes from NestJS app
    */
-  private async extractRoutes(app: any): Promise<NestJSRoute[]> {
+  private async extractRoutes(app: NestJSApp): Promise<NestJSRoute[]> {
     const routes: NestJSRoute[] = [];
     
     try {
@@ -115,7 +136,7 @@ export class NestJSDiscoverer extends BaseDiscoverer {
   /**
    * Check if app has route explorer functionality
    */
-  private hasRouteExplorer(app: any): boolean {
+  private hasRouteExplorer(app: NestJSApp): boolean {
     try {
       return app.get && typeof app.get === 'function';
     } catch {
@@ -126,13 +147,13 @@ export class NestJSDiscoverer extends BaseDiscoverer {
   /**
    * Get routes using NestJS route explorer
    */
-  private async getRoutesFromExplorer(app: any): Promise<NestJSRoute[]> {
+  private async getRoutesFromExplorer(app: NestJSApp): Promise<NestJSRoute[]> {
     const routes: NestJSRoute[] = [];
     
     try {
       // Try to get the router/routes explorer from the app
-      const httpServer = app.getHttpServer();
-      const router = httpServer._router;
+      const httpServer = app.getHttpServer?.();
+      const router = (httpServer as any)?._router;
       
       if (router && router.stack) {
         for (const layer of router.stack) {
@@ -154,14 +175,14 @@ export class NestJSDiscoverer extends BaseDiscoverer {
   /**
    * Get routes from HTTP adapter
    */
-  private getRoutesFromHttpAdapter(app: any): NestJSRoute[] {
+  private getRoutesFromHttpAdapter(app: NestJSApp): NestJSRoute[] {
     const routes: NestJSRoute[] = [];
     
     try {
       const httpAdapter = app.httpAdapter;
       
-      if (httpAdapter && httpAdapter.getInstance) {
-        const instance = httpAdapter.getInstance();
+      if (httpAdapter && (httpAdapter as any).getInstance) {
+        const instance = (httpAdapter as any).getInstance();
         
         // For Express adapter
         if (instance._router && instance._router.stack) {
@@ -191,7 +212,7 @@ export class NestJSDiscoverer extends BaseDiscoverer {
   /**
    * Get routes by analyzing controllers
    */
-  private async getRoutesFromControllers(app: any): Promise<NestJSRoute[]> {
+  private async getRoutesFromControllers(app: NestJSApp): Promise<NestJSRoute[]> {
     const routes: NestJSRoute[] = [];
     
     try {
@@ -246,7 +267,7 @@ export class NestJSDiscoverer extends BaseDiscoverer {
   /**
    * Parse Fastify routes (for NestJS with Fastify adapter)
    */
-  private parseFastifyRoutes(fastifyInstance: any): NestJSRoute[] {
+  private parseFastifyRoutes(fastifyInstance: FastifyInstance): NestJSRoute[] {
     const routes: NestJSRoute[] = [];
     
     try {
@@ -257,7 +278,7 @@ export class NestJSDiscoverer extends BaseDiscoverer {
         routesOutput += str + '\n';
       };
       
-      fastifyInstance.printRoutes();
+      (fastifyInstance as any).printRoutes?.();
       console.log = originalLog;
       
       // Parse the output
@@ -438,13 +459,13 @@ export class NestJSDiscoverer extends BaseDiscoverer {
     // Extract from metadata
     if (route.metadata) {
       if (route.metadata.description) {
-        result.description = route.metadata.description;
+        result.description = route.metadata.description as string;
       }
       if (route.metadata.summary) {
-        result.summary = route.metadata.summary;
+        result.summary = route.metadata.summary as string;
       }
       if (route.metadata.tags) {
-        result.tags.push(...route.metadata.tags);
+        result.tags?.push(...(route.metadata.tags as string[]));
       }
     }
 
@@ -454,29 +475,30 @@ export class NestJSDiscoverer extends BaseDiscoverer {
   /**
    * Process NestJS decorators to extract metadata
    */
-  private processDecorator(decorator: any, result: any): void {
-    if (!decorator || !decorator.name) {
+  private processDecorator(decorator: unknown, result: ReturnType<NestJSDiscoverer['analyzeRouteMetadata']>): void {
+    const decoratorObj = decorator as { name?: string; args?: unknown[] };
+    if (!decoratorObj || !decoratorObj.name) {
       return;
     }
 
-    switch (decorator.name) {
+    switch (decoratorObj.name) {
       case 'ApiTags':
-        if (decorator.args && decorator.args.length > 0) {
-          result.tags.push(...decorator.args);
+        if (decoratorObj.args && decoratorObj.args.length > 0) {
+          result.tags?.push(...(decoratorObj.args as string[]));
         }
         break;
         
       case 'ApiOperation':
-        if (decorator.args && decorator.args[0]) {
-          const operation = decorator.args[0];
+        if (decoratorObj.args && decoratorObj.args[0]) {
+          const operation = decoratorObj.args[0] as { summary?: string; description?: string };
           if (operation.summary) result.summary = operation.summary;
           if (operation.description) result.description = operation.description;
         }
         break;
         
       case 'ApiQuery':
-        if (decorator.args && decorator.args[0]) {
-          const query = decorator.args[0];
+        if (decoratorObj.args && decoratorObj.args[0]) {
+          const query = decoratorObj.args[0] as { name: string; type?: string; required?: boolean; description?: string };
           result.queryParams.push({
             name: query.name,
             type: (query.type || 'string') as 'string' | 'number' | 'boolean' | 'object' | 'array',
@@ -488,8 +510,8 @@ export class NestJSDiscoverer extends BaseDiscoverer {
         break;
         
       case 'ApiHeader':
-        if (decorator.args && decorator.args[0]) {
-          const header = decorator.args[0];
+        if (decoratorObj.args && decoratorObj.args[0]) {
+          const header = decoratorObj.args[0] as { name: string; type?: string; required?: boolean; description?: string };
           result.headerParams.push({
             name: header.name,
             type: (header.type || 'string') as 'string' | 'number' | 'boolean' | 'object' | 'array',
@@ -501,8 +523,8 @@ export class NestJSDiscoverer extends BaseDiscoverer {
         break;
         
       case 'ApiBody':
-        if (decorator.args && decorator.args[0]) {
-          const body = decorator.args[0];
+        if (decoratorObj.args && decoratorObj.args[0]) {
+          const body = decoratorObj.args[0] as { description?: string; type?: { name: string } };
           result.requestBody = {
             description: body.description || 'Request body',
             required: true,
@@ -516,8 +538,8 @@ export class NestJSDiscoverer extends BaseDiscoverer {
         break;
         
       case 'ApiResponse':
-        if (decorator.args && decorator.args[0]) {
-          const response = decorator.args[0];
+        if (decoratorObj.args && decoratorObj.args[0]) {
+          const response = decoratorObj.args[0] as { status?: string; description?: string; type?: { name: string } };
           if (!result.responses) result.responses = {};
           result.responses[response.status || '200'] = {
             description: response.description || 'Response',

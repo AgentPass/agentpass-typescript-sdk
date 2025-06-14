@@ -1,5 +1,5 @@
 import { BaseDiscoverer } from '../base/BaseDiscoverer';
-import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod } from '../../core/types';
+import { DiscoverOptions, EndpointDefinition, DiscoveryError, HTTPMethod, RequestBodyDefinition, ResponseDefinition } from '../../core/types';
 import { SUPPORTED_FRAMEWORKS } from '../../core/constants';
 // Note: fs and path would be imported in a real implementation
 // import * as fs from 'fs';
@@ -27,11 +27,17 @@ interface NextJSRoute {
   segments: string[];
 }
 
+interface FSEntry {
+  name: string;
+  isDirectory(): boolean;
+  isFile(): boolean;
+}
+
 interface NextJSAPIRoute {
   path: string;
   filePath: string;
-  handler: any;
-  config?: any;
+  handler: null;
+  config?: Record<string, unknown>;
   methods: string[];
   isDynamic: boolean;
   params: string[];
@@ -49,7 +55,7 @@ export class NextJSDiscoverer extends BaseDiscoverer {
 
     // Check if it's a Next.js project structure
     if (options.custom?.directory) {
-      return this.isNextJSProject(options.custom.directory);
+      return this.isNextJSProject(options.custom.directory as string);
     }
 
     return false;
@@ -61,14 +67,14 @@ export class NextJSDiscoverer extends BaseDiscoverer {
     const directory = options.custom?.directory || './pages/api';
     const baseUrl = options.custom?.baseUrl || '/api';
 
-    if (!fs.existsSync(directory)) {
+    if (!fs.existsSync(directory as string)) {
       throw new DiscoveryError(`Next.js API directory not found: ${directory}`);
     }
 
     try {
       this.log('info', 'Starting Next.js API routes discovery');
       
-      const routes = await this.extractRoutes(directory, baseUrl);
+      const routes = await this.extractRoutes(directory as string, baseUrl as string);
       const endpoints = this.convertRoutesToEndpoints(routes);
       
       this.log('info', `Discovered ${endpoints.length} endpoints from Next.js API routes`);
@@ -116,9 +122,9 @@ export class NextJSDiscoverer extends BaseDiscoverer {
    * Recursively scan directory for API routes
    */
   private async scanDirectory(dir: string, baseRoute: string, routes: NextJSAPIRoute[]): Promise<void> {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const entries = fs.readdirSync(dir, { withFileTypes: true }) as FSEntry[];
     
-    for (const entry of entries as any[]) {
+    for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       
       if (entry.isDirectory()) {
@@ -360,18 +366,18 @@ export class NextJSDiscoverer extends BaseDiscoverer {
     summary?: string;
     tags?: string[];
     queryParams: Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>;
-    requestBody?: any;
-    responses?: any;
-    metadata?: Record<string, any>;
+    requestBody?: RequestBodyDefinition;
+    responses?: ResponseDefinition;
+    metadata?: Record<string, unknown>;
   } {
     const result = {
       queryParams: [] as Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>,
-      metadata: {} as Record<string, any>,
+      metadata: {} as Record<string, unknown>,
       tags: [] as string[],
       description: undefined as string | undefined,
       summary: undefined as string | undefined,
-      requestBody: undefined as any,
-      responses: undefined as any,
+      requestBody: undefined as RequestBodyDefinition | undefined,
+      responses: undefined as ResponseDefinition | undefined,
     };
 
     try {
