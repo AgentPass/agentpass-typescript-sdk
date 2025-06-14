@@ -120,7 +120,7 @@ export interface DiscoverOptions {
   strategy?: 'openapi' | 'crawl' | 'auto' | 'introspect';
   
   // OpenAPI specific
-  openapi?: string | OpenAPIV3.Document;
+  openapi?: string | any;
   
   // Crawling options
   crawl?: CrawlOptions;

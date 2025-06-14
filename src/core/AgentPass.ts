@@ -186,7 +186,7 @@ export class AgentPass extends EventEmitter {
     if (plugin.middleware) {
       Object.entries(plugin.middleware).forEach(([phase, middlewares]) => {
         if (middlewares) {
-          middlewares.forEach(middleware => {
+          middlewares.forEach((middleware: any) => {
             this.use(phase as keyof MiddlewareConfig, middleware);
           });
         }

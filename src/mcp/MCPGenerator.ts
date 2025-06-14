@@ -40,7 +40,7 @@ export class MCPGenerator {
   /**
    * Generate MCP server from endpoints
    */
-  async generate(endpoints: EndpointDefinition[], options: MCPOptions = {}): Promise<Server> {
+  async generate(endpoints: EndpointDefinition[], options: MCPOptions = {}): Promise<any> {
     if (endpoints.length === 0) {
       throw new MCPError('No endpoints provided for MCP server generation');
     }
@@ -274,7 +274,7 @@ export class MCPGenerator {
   /**
    * Register tool handlers with MCP server
    */
-  private registerToolHandlers(server: Server, tools: MCPTool[]): void {
+  private registerToolHandlers(server: any, tools: MCPTool[]): void {
     // List tools handler
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
@@ -287,7 +287,7 @@ export class MCPGenerator {
     });
 
     // Call tool handler
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
       const { name, arguments: args } = request.params;
       
       const tool = tools.find(t => t.name === name);
@@ -296,7 +296,14 @@ export class MCPGenerator {
       }
 
       try {
-        const result = await tool.handler(args || {}, {});
+        const mockContext: MiddlewareContext = {
+          endpoint: { id: '', method: 'GET', path: '', tags: [], parameters: [], responses: {}, metadata: {} },
+          request: { path: '', method: 'GET', headers: {}, params: {}, query: {} },
+          timestamp: new Date(),
+          requestId: '',
+          metadata: {}
+        };
+        const result = await tool.handler(args || {}, mockContext);
         
         return {
           content: [

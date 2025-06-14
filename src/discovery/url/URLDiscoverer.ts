@@ -251,7 +251,7 @@ export class URLDiscoverer extends BaseDiscoverer {
   private createEndpointFromResult(result: CrawlResult, method: HTTPMethod): EndpointDefinition | null {
     try {
       const url = new URL(result.url);
-      const path = url.pathname;
+      const path = url.pathname || '/';
       
       // Extract potential parameters from URL
       const pathParams = this.extractPathParametersFromURL(path);
@@ -312,7 +312,7 @@ export class URLDiscoverer extends BaseDiscoverer {
       const segment = segments[i];
       
       // Look for numeric IDs or UUIDs
-      if (this.looksLikeParameter(segment)) {
+      if (segment && this.looksLikeParameter(segment)) {
         const paramName = this.generateParameterName(segments, i);
         if (!params.includes(paramName)) {
           params.push(paramName);
@@ -368,10 +368,11 @@ export class URLDiscoverer extends BaseDiscoverer {
     
     const urlParams = new URLSearchParams(search);
     
-    for (const [name, value] of urlParams.entries()) {
+    // Use forEach instead of entries() for broader compatibility
+    urlParams.forEach((value, name) => {
       const type = this.inferTypeFromValue(value);
       params.push({ name, type });
-    }
+    });
     
     return params;
   }
@@ -495,8 +496,10 @@ export class URLDiscoverer extends BaseDiscoverer {
     
     while ((match = hrefRegex.exec(html)) !== null) {
       const href = match[1];
-      const fullUrl = this.resolveURL(href, baseUrl);
-      if (fullUrl) links.push(fullUrl);
+      if (href) {
+        const fullUrl = this.resolveURL(href, baseUrl);
+        if (fullUrl) links.push(fullUrl);
+      }
     }
   }
 
@@ -515,13 +518,12 @@ export class URLDiscoverer extends BaseDiscoverer {
   /**
    * Resolve relative URL to absolute URL
    */
-  private resolveURL(url: string, baseUrl: string): string | null {
+  private resolveURL(url: string, baseUrl: string): string {
     try {
       if (url.startsWith('http')) return url;
-      if (url.startsWith('/')) return new URL(url, baseUrl).toString();
-      return new URL(url, baseUrl).toString();
+      return baseUrl + (url.startsWith('/') ? url : '/' + url);
     } catch {
-      return null;
+      return '';
     }
   }
 

@@ -330,11 +330,11 @@ export class KoaDiscoverer extends BaseDiscoverer {
     if (destructureMatches) {
       for (const match of destructureMatches) {
         const paramsMatch = match.match(/{\s*([^}]+)\s*}/);
-        if (paramsMatch) {
+        if (paramsMatch && paramsMatch[1]) {
           const params = paramsMatch[1].split(',').map(p => p.trim());
           for (const param of params) {
-            const paramName = param.split(':')[0].trim();
-            if (!queryParams.some(p => p.name === paramName)) {
+            const paramName = param.split(':')[0]?.trim();
+            if (paramName && !queryParams.some(p => p.name === paramName)) {
               queryParams.push({
                 name: paramName,
                 type: 'string',

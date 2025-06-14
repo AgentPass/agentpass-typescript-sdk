@@ -21,4 +21,5 @@ export { MCPGenerator } from './mcp/MCPGenerator';
 export { MiddlewareRunner } from './middleware/MiddlewareRunner';
 
 // Default export
-export { AgentPass as default };
+import { AgentPass } from './core/AgentPass';
+export default AgentPass;

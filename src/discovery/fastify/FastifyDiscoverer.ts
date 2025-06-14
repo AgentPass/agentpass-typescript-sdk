@@ -125,8 +125,8 @@ export class FastifyDiscoverer extends BaseDiscoverer {
         if (routeMatch) {
           const [, method, url] = routeMatch;
           routes.push({
-            method: method,
-            url: url,
+            method: method || 'GET',
+            url: url || '',
             handler: () => {}, // Placeholder
           });
         }
@@ -238,9 +238,17 @@ export class FastifyDiscoverer extends BaseDiscoverer {
         description: `Path parameter: ${param}`,
       })),
       // Query parameters from schema
-      ...routeInfo.queryParams,
+      ...routeInfo.queryParams.map(qp => ({
+        ...qp,
+        type: qp.type as 'string' | 'number' | 'boolean' | 'object' | 'array',
+        in: qp.in as 'query' | 'header'
+      })),
       // Header parameters from schema
-      ...routeInfo.headerParams,
+      ...routeInfo.headerParams.map(hp => ({
+        ...hp,
+        type: hp.type as 'string' | 'number' | 'boolean' | 'object' | 'array',
+        in: hp.in as 'query' | 'header'
+      })),
     ];
 
     return this.createBaseEndpoint(method, normalizedPath, {
@@ -295,18 +303,23 @@ export class FastifyDiscoverer extends BaseDiscoverer {
     description?: string;
     summary?: string;
     tags?: string[];
-    queryParams: Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>;
-    headerParams: Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>;
+    queryParams: Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>;
+    headerParams: Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>;
     requestBody?: any;
     responses?: any;
     responseSchema?: any;
     metadata?: Record<string, any>;
   } {
     const result = {
-      queryParams: [] as Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>,
-      headerParams: [] as Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>,
+      queryParams: [] as Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>,
+      headerParams: [] as Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>,
       metadata: {} as Record<string, any>,
       tags: [] as string[],
+      description: undefined as string | undefined,
+      summary: undefined as string | undefined,
+      requestBody: undefined as any,
+      responses: undefined as any,
+      responseSchema: undefined as any,
     };
 
     if (!schema) {
@@ -330,10 +343,10 @@ export class FastifyDiscoverer extends BaseDiscoverer {
         const propSchema = prop as any;
         result.queryParams.push({
           name,
-          type: propSchema.type || 'string',
+          type: (propSchema.type || 'string') as 'string' | 'number' | 'boolean' | 'object' | 'array',
           required: schema.querystring.required?.includes(name) || false,
           description: propSchema.description,
-          in: 'query',
+          in: 'query' as const,
         });
       }
     }
@@ -344,10 +357,10 @@ export class FastifyDiscoverer extends BaseDiscoverer {
         const propSchema = prop as any;
         result.headerParams.push({
           name,
-          type: propSchema.type || 'string',
+          type: (propSchema.type || 'string') as 'string' | 'number' | 'boolean' | 'object' | 'array',
           required: schema.headers.required?.includes(name) || false,
           description: propSchema.description,
-          in: 'header',
+          in: 'header' as const,
         });
       }
     }

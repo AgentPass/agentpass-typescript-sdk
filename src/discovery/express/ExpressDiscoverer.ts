@@ -112,6 +112,7 @@ export class ExpressDiscoverer extends BaseDiscoverer {
           routes.push({
             path: fullPath,
             method: method.toUpperCase(),
+            methods: route.methods || { [method.toUpperCase()]: true },
             stack: route.stack || []
           });
         }

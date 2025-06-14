@@ -76,7 +76,9 @@ export abstract class BaseDiscoverer {
     let match;
     
     while ((match = paramRegex.exec(path)) !== null) {
-      params.push(match[1]);
+      if (match[1]) {
+        params.push(match[1]);
+      }
     }
     
     return params;
@@ -182,7 +184,7 @@ export abstract class BaseDiscoverer {
   /**
    * Log discovery progress
    */
-  protected log(level: 'info' | 'warn' | 'error', message: string, data?: any): void {
+  protected log(level: 'info' | 'warn' | 'error' | 'debug', message: string, data?: any): void {
     const timestamp = new Date().toISOString();
     const logData = data ? ` ${JSON.stringify(data)}` : '';
     console.log(`[${timestamp}] [${this.name}] ${level.toUpperCase()}: ${message}${logData}`);

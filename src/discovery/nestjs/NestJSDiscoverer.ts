@@ -229,6 +229,7 @@ export class NestJSDiscoverer extends BaseDiscoverer {
 
     // NestJS typically has one method per route
     const method = methods[0];
+    if (!method) return null;
 
     return {
       path: route.path,
@@ -267,8 +268,8 @@ export class NestJSDiscoverer extends BaseDiscoverer {
         if (routeMatch) {
           const [, method, path] = routeMatch;
           routes.push({
-            path: path,
-            method: method.toUpperCase(),
+            path: path || '',
+            method: method ? method.toUpperCase() : 'GET',
             methodName: 'unknown',
             className: 'unknown',
             handler: () => {},
@@ -329,9 +330,17 @@ export class NestJSDiscoverer extends BaseDiscoverer {
           description: `Path parameter: ${param}`,
         })),
         // Query parameters from decorators
-        ...routeInfo.queryParams,
+        ...routeInfo.queryParams.map(qp => ({
+          ...qp,
+          type: qp.type as 'string' | 'number' | 'boolean' | 'object' | 'array',
+          in: qp.in as 'query' | 'header'
+        })),
         // Header parameters from decorators
-        ...routeInfo.headerParams,
+        ...routeInfo.headerParams.map(hp => ({
+          ...hp,
+          type: hp.type as 'string' | 'number' | 'boolean' | 'object' | 'array',
+          in: hp.in as 'query' | 'header'
+        })),
       ],
       requestBody: routeInfo.requestBody,
       responses: routeInfo.responses || {
@@ -394,17 +403,21 @@ export class NestJSDiscoverer extends BaseDiscoverer {
     description?: string;
     summary?: string;
     tags?: string[];
-    queryParams: Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>;
-    headerParams: Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>;
+    queryParams: Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>;
+    headerParams: Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>;
     requestBody?: any;
     responses?: any;
     metadata?: Record<string, any>;
   } {
     const result = {
-      queryParams: [] as Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>,
-      headerParams: [] as Array<{ name: string; type: string; required?: boolean; description?: string; in: string }>,
+      queryParams: [] as Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>,
+      headerParams: [] as Array<{ name: string; type: 'string' | 'number' | 'boolean' | 'object' | 'array'; required?: boolean; description?: string; in: string }>,
       metadata: {} as Record<string, any>,
       tags: [] as string[],
+      description: undefined as string | undefined,
+      summary: undefined as string | undefined,
+      requestBody: undefined as any,
+      responses: undefined as any,
     };
 
     // Extract information from decorators and metadata
@@ -466,10 +479,10 @@ export class NestJSDiscoverer extends BaseDiscoverer {
           const query = decorator.args[0];
           result.queryParams.push({
             name: query.name,
-            type: query.type || 'string',
+            type: (query.type || 'string') as 'string' | 'number' | 'boolean' | 'object' | 'array',
             required: query.required || false,
             description: query.description,
-            in: 'query',
+            in: 'query' as const,
           });
         }
         break;
@@ -479,10 +492,10 @@ export class NestJSDiscoverer extends BaseDiscoverer {
           const header = decorator.args[0];
           result.headerParams.push({
             name: header.name,
-            type: header.type || 'string',
+            type: (header.type || 'string') as 'string' | 'number' | 'boolean' | 'object' | 'array',
             required: header.required || false,
             description: header.description,
-            in: 'header',
+            in: 'header' as const,
           });
         }
         break;
