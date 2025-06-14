@@ -38,7 +38,7 @@ pnpm add agentpass @modelcontextprotocol/sdk
 ### Basic Usage
 
 ```typescript
-import { AgentPass } from 'agentpass';
+import { AgentPass } from '@agentpass/typescript-sdk';
 import express from 'express';
 
 // Your existing Express app
@@ -254,7 +254,7 @@ interface DiscoverOptions {
 ### E-commerce API
 
 ```typescript
-import { AgentPass } from 'agentpass';
+import { AgentPass } from '@agentpass/typescript-sdk';
 
 const agentpass = new AgentPass({
   name: 'ecommerce-api',

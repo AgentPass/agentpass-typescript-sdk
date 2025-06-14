@@ -1,11 +1,11 @@
 # Changelog
 
-All notable changes to the AgentPass SDK will be documented in this file.
+All notable changes to the AgentPass TypeScript SDK will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-06-14
+## [1.0.0] - 2024-01-15
 
 ### Added
 
@@ -17,7 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Discovery System
 - **BaseDiscoverer**: Abstract base class for creating custom discoverers
 - **ExpressDiscoverer**: Automatic Express.js route introspection and analysis
+- **FastifyDiscoverer**: Fastify application introspection with JSON schema support
+- **KoaDiscoverer**: Koa.js application analysis with koa-router support
+- **NestJSDiscoverer**: NestJS decorator analysis and dependency injection support
+- **NextJSDiscoverer**: Next.js API routes discovery with file system scanning
 - **OpenAPIDiscoverer**: Parse OpenAPI/Swagger specifications from files, URLs, or objects
+- **URLDiscoverer**: Live endpoint discovery through intelligent URL crawling
 - **Auto-Detection**: Intelligent framework and strategy detection
 - **Filtering**: Include/exclude patterns for endpoint filtering
 
@@ -59,8 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Build System**: TypeScript compilation with source maps and declarations
 
 ### Framework Support
-- **Express.js**: Full introspection support for route discovery
+- **Express.js**: Full introspection support for route discovery, middleware analysis, nested routers
+- **Fastify**: High-performance framework support with JSON schema integration
+- **Koa.js**: Middleware-focused framework with koa-router support
+- **NestJS**: Enterprise framework with decorator analysis and modular architecture
+- **Next.js**: API routes discovery with dynamic route support and file system scanning
 - **OpenAPI/Swagger**: Complete specification parsing and endpoint extraction
+- **URL Crawling**: Live endpoint discovery for any HTTP service
 - **Extensible Architecture**: Easy to add support for additional frameworks
 
 ### Security Features
@@ -91,12 +101,12 @@ This is the first major release of the AgentPass SDK, providing a complete solut
 
 **Getting Started:**
 ```bash
-npm install agentpass @modelcontextprotocol/sdk
+npm install @agentpass/typescript-sdk
 ```
 
 **Quick Example:**
 ```typescript
-import { AgentPass } from 'agentpass';
+import { AgentPass } from '@agentpass/typescript-sdk';
 import express from 'express';
 
 const app = express();

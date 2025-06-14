@@ -1,6 +1,6 @@
-# Contributing to AgentPass SDK
+# Contributing to AgentPass TypeScript SDK
 
-We welcome contributions to the AgentPass SDK! This document provides guidelines for contributing to the project.
+We welcome contributions to the AgentPass TypeScript SDK! This document provides guidelines for contributing to the project.
 
 ## 🚀 Getting Started
 
@@ -15,8 +15,8 @@ We welcome contributions to the AgentPass SDK! This document provides guidelines
 
 ```bash
 # Clone the repository
-git clone https://github.com/agentpass/agentpass-sdk.git
-cd agentpass-sdk
+git clone https://github.com/AgentPass/agentpass-typescript-sdk.git
+cd agentpass-typescript-sdk
 
 # Install dependencies
 npm install
@@ -42,7 +42,12 @@ src/
 ├── discovery/         # Endpoint discovery modules
 │   ├── base/          # Base discoverer class
 │   ├── express/       # Express.js discoverer
-│   └── openapi/       # OpenAPI discoverer
+│   ├── fastify/       # Fastify discoverer
+│   ├── koa/           # Koa.js discoverer
+│   ├── nestjs/        # NestJS discoverer
+│   ├── nextjs/        # Next.js discoverer
+│   ├── openapi/       # OpenAPI discoverer
+│   └── url/           # URL crawling discoverer
 ├── mcp/              # MCP server generation
 ├── middleware/       # Middleware implementations
 └── plugins/          # Plugin system

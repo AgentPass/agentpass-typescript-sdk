@@ -31,8 +31,14 @@
     "express",
     "fastify",
     "koa",
+    "nestjs",
+    "nextjs",
     "openapi",
-    "swagger"
+    "swagger",
+    "typescript",
+    "agentpass",
+    "bridge",
+    "auto-discovery"
   ],
   "author": "AgentPass Team",
   "license": "MIT",
