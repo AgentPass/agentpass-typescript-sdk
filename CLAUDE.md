@@ -28,7 +28,7 @@
 
 3. **MCP Generation** (`src/mcp/`)
    - `MCPGenerator.ts` - Converts discovered endpoints to MCP tools and servers
-   - Supports multiple transports: `stdio`, `http` (SSE deprecated)
+   - Supports multiple transports: `stdio`, `http`, `sse`
    - Handles tool naming, schema generation, and HTTP request routing
 
 4. **Middleware System** (`src/middleware/`)
@@ -55,7 +55,7 @@
 - **Pre/Post Processing**: Request/response transformation pipeline
 
 ### 🧩 MCP Integration
-- **Multiple Transports**: stdio (Claude Desktop), HTTP (web clients)
+- **Multiple Transports**: stdio (Claude Desktop), HTTP (web clients), SSE (mcp-remote)
 - **Tool Generation**: Automatic conversion of endpoints to MCP tools
 - **Schema Inference**: JSON Schema generation from endpoint parameters
 - **Error Handling**: Comprehensive error propagation and handling
@@ -123,68 +123,90 @@ npm run lint:fix
 ### Project Structure
 ```
 src/
-├── core/           # Core AgentPass logic
-├── discovery/      # Endpoint discovery implementations
-├── mcp/           # MCP server generation
-├── middleware/    # Middleware implementations
-├── plugins/       # Plugin system
-└── index.ts       # Main exports
+├── core/              # Core AgentPass logic
+├── discovery/         # Endpoint discovery implementations
+├── mcp/              # MCP server generation
+├── middleware/       # Middleware implementations
+├── plugins/          # Plugin system
+└── index.ts          # Main exports
 
-examples/          # Usage examples
-├── express/       # Express.js integration
-├── fastify/       # Fastify integration
-├── koa/          # Koa integration
-├── ecommerce/    # E-commerce API example
-├── openapi/      # OpenAPI example
-└── mcp-server.ts # Standalone MCP server
+examples/             # Usage examples (reorganized)
+├── basic/            # Getting started examples
+│   └── getting-started.ts
+├── frameworks/       # Framework-specific examples
+│   ├── express/      # Express.js integration
+│   ├── fastify/      # Fastify integration
+│   └── koa/         # Koa integration
+├── advanced/         # Complex use cases
+│   └── ecommerce-api.ts
+├── integrations/     # Third-party integrations
+│   └── openapi-petstore.ts
+├── complete-servers/ # Production-ready examples
+│   ├── stdio-server.ts    # stdio transport
+│   ├── http-server.ts     # HTTP transport
+│   ├── sse-server.ts      # SSE transport
+│   └── shared/           # Shared utilities
+│       └── api-data.ts
+├── run-example.js    # Transport selection script
+└── tsconfig.json     # TypeScript config for examples
 
 tests/
-├── e2e/          # End-to-end tests
+├── e2e/              # End-to-end tests
 ├── AgentPass.test.ts
 └── setup.ts
 ```
 
 ## Transport Types
 
-### stdio Transport (Claude Desktop - Traditional)
+### stdio Transport (Claude Desktop)
 - Uses stdin/stdout for communication
 - Perfect for desktop AI applications
 - Configuration in `claude_desktop_config.json`
+- Example: `examples/complete-servers/stdio-server.ts`
 
-### SSE Transport (Claude Desktop - Modern)
+### SSE Transport (mcp-remote + Claude Desktop)
 - Server-Sent Events with HTTP POST for messages
-- Native Claude Desktop support for newer versions
-- Endpoints: `GET /sse` (stream), `POST /sse` (messages)
+- Uses `mcp-remote` package to bridge SSE to Claude Desktop
+- Endpoints: `GET /sse` (stream), `POST /sse/messages` (bidirectional)
+- Example: `examples/complete-servers/sse-server.ts`
 
 ### HTTP Transport (Web Clients)
 - RESTful JSON-RPC 2.0 over HTTP
 - CORS support for browser clients
 - Endpoint: `POST /mcp`
+- Example: `examples/complete-servers/http-server.ts`
 
 ## Complete MCP Server Examples
 
-### stdio Transport (`complete-mcp-server.mjs`)
-The `complete-mcp-server.mjs` file demonstrates a full implementation for Claude Desktop:
-1. **Express API Server**: Real REST API with endpoints for users, projects, departments, analytics
+### stdio Transport (`examples/complete-servers/stdio-server.ts`)
+Demonstrates a full implementation for Claude Desktop:
+1. **Express API Server**: Real REST API with company management endpoints
 2. **Auto-Discovery**: Automatically discovers all Express routes
 3. **MCP Generation**: Converts endpoints to MCP tools
-4. **stdio Transport**: Integrated execution for Claude Desktop via stdin/stdout
+4. **stdio Transport**: Direct Claude Desktop integration via stdin/stdout
 
-### SSE Transport (`complete-mcp-server-sse.mjs`)
-The `complete-mcp-server-sse.mjs` file demonstrates SSE transport for Claude Desktop:
-1. **Same Express API**: Identical REST API endpoints
+### SSE Transport (`examples/complete-servers/sse-server.ts`)
+Demonstrates SSE transport for mcp-remote + Claude Desktop:
+1. **Same Express API**: Identical REST API endpoints using shared module
 2. **SSE Transport**: Server-Sent Events with HTTP POST for bidirectional communication
-3. **Claude Desktop Ready**: Native support for modern Claude Desktop versions
-4. **Real-time Communication**: Efficient streaming for responsive interactions
+3. **mcp-remote Ready**: Designed for mcp-remote package integration
+4. **URL Parsing**: Handles sessionId query parameters correctly
 
-### HTTP Transport (`complete-mcp-server-http.mjs`)
-The `complete-mcp-server-http.mjs` file demonstrates HTTP transport for web clients:
-1. **Same Express API**: Identical REST API endpoints
+### HTTP Transport (`examples/complete-servers/http-server.ts`)
+Demonstrates HTTP transport for web clients:
+1. **Same Express API**: Identical REST API endpoints using shared module
 2. **HTTP Transport**: RESTful JSON-RPC 2.0 over HTTP with CORS support
 3. **Web Client Ready**: Suitable for browser-based AI assistants and testing
 4. **Testing Tools**: Includes curl examples for manual testing
 
-Key endpoints in both examples:
+### Shared API Data (`examples/complete-servers/shared/api-data.ts`)
+All complete server examples use a shared API implementation:
+- **Sample Data**: Users, projects, departments with realistic business data
+- **Common Endpoints**: Standardized REST API endpoints
+- **Tool Naming**: Consistent MCP tool naming strategy
+- **Tool Descriptions**: Business-friendly descriptions for AI assistants
+
+Key endpoints in all examples:
 - `GET /api/users` - User management with filtering and pagination
 - `GET /api/users/:id` - Individual user details
 - `POST /api/users` - Create new users
@@ -223,13 +245,21 @@ npm run test:unit
 npm run test:e2e
 
 # Example execution
-npm run example:ecommerce
+npm run example:getting-started
 npm run example:express
+npm run example:fastify
+npm run example:koa
+npm run example:ecommerce
+npm run example:openapi
+
+# Examples with transport selection
+npm run example:express -- --transport=http
+npm run example:express -- --transport=sse
 
 # Complete MCP servers
-node complete-mcp-server.mjs      # stdio transport for Claude Desktop
-node complete-mcp-server-sse.mjs  # SSE transport for Claude Desktop (modern)
-node complete-mcp-server-http.mjs # HTTP transport for web clients
+npm run example:complete:stdio    # stdio transport for Claude Desktop
+npm run example:complete:sse      # SSE transport for mcp-remote + Claude Desktop
+npm run example:complete:http     # HTTP transport for web clients
 ```
 
 ## Development Notes

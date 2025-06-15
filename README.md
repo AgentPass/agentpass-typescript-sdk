@@ -466,30 +466,44 @@ const mcpServer = await agentpass.generateMCPServer({
 
 ### Complete Examples
 
-AgentPass includes complete working examples:
+AgentPass includes complete working examples organized by complexity:
 
 ```bash
-# Express.js basic example
+# Getting started example
+npm run example:getting-started
+
+# Framework-specific examples
 npm run example:express
+npm run example:fastify
+npm run example:koa
 
-# E-commerce example with authentication and rate limiting
-npm run example:ecommerce
+# Advanced examples
+npm run example:ecommerce      # E-commerce API with auth and rate limiting
+npm run example:openapi        # OpenAPI/Swagger integration
 
-# Complete MCP server with built-in API (stdio transport for Claude Desktop)
-node complete-mcp-server.mjs
+# Complete MCP servers with different transports
+npm run example:complete:stdio  # stdio transport for Claude Desktop
+npm run example:complete:http   # HTTP transport for web clients
+npm run example:complete:sse    # SSE transport for mcp-remote + Claude Desktop
+```
 
-# Complete MCP server with SSE transport (for modern Claude Desktop)
-node complete-mcp-server-sse.mjs
+#### Transport Selection
 
-# Complete MCP server with HTTP transport (for web clients)
-node complete-mcp-server-http.mjs
+For framework examples, you can select the transport type:
+
+```bash
+# Run Express example with different transports
+npm run example:express                    # Default: basic Express example
+npm run example:express -- --transport=http  # HTTP transport
+npm run example:express -- --transport=sse   # SSE transport
 ```
 
 The complete examples demonstrate:
 - **Real API Server**: Working Express server with multiple endpoints
 - **Auto-Discovery**: Automatic endpoint detection and conversion
 - **MCP Integration**: Ready-to-use MCP server with tools
-- **Transport Options**: stdio, SSE (Claude Desktop) and HTTP (web clients)
+- **Multiple Transports**: stdio, HTTP, and SSE support
+- **Framework Support**: Express, Fastify, Koa examples
 
 ## 🧪 Testing
 
@@ -531,14 +545,14 @@ npm run lint
 For production use, start with our complete examples:
 
 ```bash
-# For Claude Desktop (stdio transport - traditional)
-node complete-mcp-server.mjs
+# For Claude Desktop (stdio transport)
+npm run example:complete:stdio
 
-# For Claude Desktop (SSE transport - modern)
-node complete-mcp-server-sse.mjs
+# For Claude Desktop with mcp-remote (SSE transport) 
+npm run example:complete:sse
 
 # For web clients (HTTP transport)
-node complete-mcp-server-http.mjs
+npm run example:complete:http
 ```
 
 ### Custom MCP Server
@@ -549,8 +563,13 @@ Build your own from the examples:
 # Build the project
 npm run build
 
-# Run your custom server
-npx ts-node examples/express/basic.ts
+# Run framework examples
+npm run example:express
+npm run example:fastify
+npm run example:koa
+
+# Run with specific transport
+npm run example:express -- --transport=http
 ```
 
 ### Integration with Claude Desktop
@@ -561,8 +580,23 @@ Add to your Claude Desktop MCP configuration:
 {
   "mcpServers": {
     "company-api": {
-      "command": "node",
-      "args": ["/path/to/complete-mcp-server.mjs"]
+      "command": "npx",
+      "args": ["ts-node", "examples/complete-servers/stdio-server.ts"]
+    }
+  }
+}
+```
+
+For SSE transport with mcp-remote:
+```json
+{
+  "mcpServers": {
+    "company-api-sse": {
+      "command": "npx",
+      "args": [
+        "mcp-remote",
+        "http://localhost:PORT/sse"
+      ]
     }
   }
 }

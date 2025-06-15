@@ -1,4 +1,4 @@
-import { AgentPass } from '../../src';
+import { AgentPass } from '../../../src';
 import Fastify from 'fastify';
 
 // Create Fastify app

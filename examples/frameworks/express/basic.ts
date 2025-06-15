@@ -1,4 +1,4 @@
-import { AgentPass } from '../../src';
+import { AgentPass } from '../../../src';
 import express, { Request, Response } from 'express';
 
 // Create a simple Express app
@@ -46,7 +46,7 @@ app.delete('/users/:id', (req: Request, res: Response) => {
 
 // Basic AgentPass setup
 async function main() {
-  console.log('🚀 Starting Basic Express AgentPass Example (Test Mode)...');
+  console.log('🚀 Starting Basic Express AgentPass Example...');
 
   const agentpass = new AgentPass({
     name: 'basic-express-api',
@@ -84,16 +84,16 @@ async function main() {
     }
   });
 
-  console.log('✅ MCP Server created successfully');
-  console.log(`📋 Server Info:`);
-  console.log(`   Name: ${mcpServer.info.name}`);
-  console.log(`   Version: ${mcpServer.info.version}`);
-  console.log(`   Transport: ${mcpServer.transport.type}`);
-  console.log(`   Tools capability: ${mcpServer.capabilities.tools}`);
-  
-  console.log('\n🎯 Example completed successfully!');
-  console.log('💡 To use with Claude Desktop, run: npm run example:express');
-  console.log('   (The server will start and wait for Claude Desktop connection)');
+  // Start Express server for testing
+  const port = 3000;
+  app.listen(port, () => {
+    console.log(`📦 Express server running on http://localhost:${port}`);
+  });
+
+  // Start MCP server
+  await mcpServer.start();
+
+  console.log('✅ MCP Server started successfully');
 }
 
 // Start the example

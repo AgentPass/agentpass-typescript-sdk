@@ -5,7 +5,7 @@
  * that can be used with Claude Desktop or other MCP clients.
  */
 
-import { AgentPass } from '../src/core/AgentPass';
+import { AgentPass } from '../../src/core/AgentPass';
 import express from 'express';
 
 async function createMCPServer() {
@@ -99,24 +99,6 @@ async function createMCPServer() {
     }
   });
 
-  // Health and status endpoints
-  app.get('/health', (req, res) => {
-    res.json({ 
-      status: 'healthy', 
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      version: '1.0.0'
-    });
-  });
-
-  app.get('/stats', (req, res) => {
-    res.json({
-      totalUsers: 3,
-      totalProducts: 4,
-      categories: ['electronics', 'books', 'office'],
-      serverTime: new Date().toISOString()
-    });
-  });
 
   // 3. Discover endpoints from Express app
   console.log('🔍 Discovering endpoints from Express app...');
@@ -157,8 +139,6 @@ async function createMCPServer() {
         'POST /users': 'Create a new user in the system',
         'GET /products': 'List all products with optional filtering',
         'GET /products/{id}': 'Get detailed information about a specific product',
-        'GET /health': 'Check the health and status of the API',
-        'GET /stats': 'Get system statistics and metrics'
       };
       
       const key = `${endpoint.method} ${endpoint.path}`;
@@ -186,7 +166,7 @@ async function main() {
   "mcpServers": {
     "example-api": {
       "command": "node",
-      "args": ["dist/examples/mcp-server.js"]
+      "args": ["dist/examples/basic/getting-started.js"]
     }
   }
 }`);

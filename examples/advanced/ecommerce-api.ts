@@ -128,15 +128,6 @@ app.get('/orders/:id', (req, res) => {
   res.json(order);
 });
 
-// Admin endpoints
-app.get('/admin/stats', (req, res) => {
-  res.json({
-    totalProducts: db.products.length,
-    totalOrders: db.orders.length,
-    totalRevenue: db.orders.reduce((sum, order) => sum + order.total, 0),
-    lowStockProducts: db.products.filter(p => p.stock < 5),
-  });
-});
 
 // Setup AgentPass
 async function setupAgentPass() {
@@ -243,7 +234,6 @@ async function setupAgentPass() {
       'GET /products/:id': 'Get detailed information about a specific product including stock levels',
       'POST /orders': 'Create a new order with items and customer information. Validates stock availability',
       'GET /orders/:id': 'Retrieve order details including items, customer info, and status',
-      'GET /admin/stats': 'Get administrative statistics including revenue and low stock alerts',
     };
     
     const key = `${endpoint.method} ${endpoint.path}`;

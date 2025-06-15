@@ -1,4 +1,4 @@
-import { AgentPass } from '../../src';
+import { AgentPass } from '../../../src';
 import Koa from 'koa';
 import Router from 'koa-router';
 import bodyParser from 'koa-bodyparser';
