@@ -195,7 +195,7 @@ const result = await httpClient.callTool({ name: "get_users", arguments: {} });
 - `GET /api/departments` - Department information with budget data
 - `GET /api/analytics/overview` - Business analytics dashboard
 
-#### 1. stdio Transport (`stdio-server.ts`)
+#### 1. stdio Transport (`examples/stdio-server.ts`)
 **Purpose**: Claude Desktop integration via stdin/stdout
 ```bash
 npm run example:complete:stdio
@@ -205,7 +205,7 @@ npm run example:complete:stdio
 - **MCP Generation**: Converts to 6 MCP tools with business-friendly names
 - **Claude Desktop Ready**: Direct integration via claude_desktop_config.json
 
-#### 2. SSE Transport (`sse-server.ts`)
+#### 2. SSE Transport (`examples/sse-server.ts`)
 **Purpose**: mcp-remote + Claude Desktop integration
 ```bash
 npm run example:complete:sse
@@ -215,7 +215,7 @@ npm run example:complete:sse
 - **mcp-remote Compatible**: Works with mcp-remote package for Claude Desktop bridge
 - **Session Management**: Proper session ID handling
 
-#### 3. HTTP Transport (`http-server.ts`)
+#### 3. HTTP Transport (`examples/http-server.ts`)
 **Purpose**: Web clients and direct HTTP access
 ```bash
 npm run example:complete:http
@@ -225,7 +225,7 @@ npm run example:complete:http
 - **Full Protocol**: Complete MCP initialization handshake
 - **CORS Enabled**: Browser-compatible with proper CORS headers
 
-### Shared Utilities (`examples/complete-servers/shared/`)
+### Shared Utilities (`examples/shared/`)
 
 **api-data.ts** - Common API implementation:
 - **Tool Naming Strategy**: Consistent MCP tool naming across all transports
@@ -256,11 +256,13 @@ npm run test:coverage   # With coverage reporting
 npm run lint            # ESLint checking
 npm run lint:fix        # ESLint with auto-fix
 
-# Example Execution
-npm run example:express
-npm run example:fastify
+# Example Execution with Transport Selection
+npm run example:express -- --transport=stdio  # Default
+npm run example:express -- --transport=http   # Web clients
+npm run example:express -- --transport=sse    # mcp-remote
+npm run example:fastify -- --transport=http
+npm run example:koa -- --transport=sse
 npm run example:openapi
-npm run example:ecommerce
 
 # Complete MCP Servers
 npm run example:complete:stdio    # Claude Desktop
@@ -296,16 +298,14 @@ src/
 └── index.ts           # Main exports
 
 examples/              # Comprehensive examples
-├── complete-servers/  # Production-ready examples
-│   ├── stdio-server.ts    # Claude Desktop (stdio)
-│   ├── http-server.ts     # Web clients (HTTP)
-│   ├── sse-server.ts      # mcp-remote (SSE)
-│   └── shared/           # Shared API implementation
-│       └── api-data.ts
-├── express/           # Express.js integration
-├── fastify/           # Fastify integration
-├── openapi/           # OpenAPI parsing
-├── ecommerce/         # Complex business logic
+├── stdio-server.ts    # Claude Desktop (stdio)
+├── http-server.ts     # Web clients (HTTP)
+├── sse-server.ts      # mcp-remote (SSE)
+├── shared/           # Shared API implementation
+│   └── api-data.ts
+├── integrations/     # Third-party integrations
+│   └── openapi-petstore.ts
+├── run-example.js    # Transport selection runner
 └── tsconfig.json      # Examples TypeScript config
 
 tests/

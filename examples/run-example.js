@@ -25,32 +25,37 @@ let exampleFile = '';
 switch (npmScriptName) {
   case 'example:express':
     if (transport === 'http') {
-      exampleFile = 'examples/complete-servers/http-server.ts';
+      exampleFile = 'examples/http-server.ts';
     } else if (transport === 'sse') {
-      exampleFile = 'examples/complete-servers/sse-server.ts';
-    } else if (transport === 'stdio') {
-      exampleFile = 'examples/complete-servers/stdio-server.ts';
+      exampleFile = 'examples/sse-server.ts';
     } else {
-      exampleFile = 'examples/frameworks/express/basic.ts';
+      exampleFile = 'examples/stdio-server.ts'; // default to stdio
     }
     break;
   case 'example:fastify':
-    exampleFile = 'examples/frameworks/fastify/basic.ts';
+    if (transport === 'http') {
+      exampleFile = 'examples/http-server.ts';
+    } else if (transport === 'sse') {
+      exampleFile = 'examples/sse-server.ts';
+    } else {
+      exampleFile = 'examples/stdio-server.ts'; // default to stdio
+    }
     break;
   case 'example:koa':
-    exampleFile = 'examples/frameworks/koa/basic.ts';
-    break;
-  case 'example:getting-started':
-    exampleFile = 'examples/basic/getting-started.ts';
-    break;
-  case 'example:ecommerce':
-    exampleFile = 'examples/advanced/ecommerce-api.ts';
+    if (transport === 'http') {
+      exampleFile = 'examples/http-server.ts';
+    } else if (transport === 'sse') {
+      exampleFile = 'examples/sse-server.ts';
+    } else {
+      exampleFile = 'examples/stdio-server.ts'; // default to stdio
+    }
     break;
   case 'example:openapi':
     exampleFile = 'examples/integrations/openapi-petstore.ts';
     break;
   default:
     console.error(`Unknown example: ${npmScriptName}`);
+    console.error(`Available examples: express, fastify, koa, openapi`);
     process.exit(1);
 }
 

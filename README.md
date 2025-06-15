@@ -299,26 +299,29 @@ await agentpass.discover({
 
 The project includes comprehensive examples in the `examples/` directory:
 
-- **[Getting Started](examples/getting-started.ts)** - Basic AgentPass usage
-- **[Express Integration](examples/express/)** - Express.js discovery and tools
-- **[Fastify Integration](examples/fastify/)** - Fastify schema-aware discovery
-- **[OpenAPI Parsing](examples/openapi/)** - OpenAPI/Swagger specification parsing
-- **[E-commerce API](examples/ecommerce/)** - Complex API with authentication and validation
-- **[Complete Servers](examples/complete-servers/)** - Production-ready MCP servers
+- **[Production MCP Servers](examples/)** - Complete stdio, HTTP, and SSE transport servers
+- **[OpenAPI Integration](examples/integrations/)** - OpenAPI/Swagger specification parsing
 
 ### Running Examples
 
+All framework examples support transport selection:
+
 ```bash
-# Express example
-npm run example:express
+# Run with different transports
+npm run example:express -- --transport=stdio  # Default (Claude Desktop)
+npm run example:express -- --transport=http   # Web clients
+npm run example:express -- --transport=sse    # mcp-remote
 
-# Complete stdio server for Claude Desktop
+# Same transport options work for all frameworks
+npm run example:fastify -- --transport=http
+npm run example:koa -- --transport=sse
+
+# OpenAPI example
+npm run example:openapi
+
+# Direct server access (if you prefer explicit commands)
 npm run example:complete:stdio
-
-# Complete HTTP server for web clients
-npm run example:complete:http
-
-# Complete SSE server for mcp-remote
+npm run example:complete:http  
 npm run example:complete:sse
 ```
 

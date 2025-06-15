@@ -1,21 +1,21 @@
 #!/usr/bin/env ts-node
 
 /**
- * Complete MCP Server with Built-in API - stdio Transport
+ * Complete MCP Server with Built-in API - SSE Transport
  * 
  * This example demonstrates a complete MCP server setup with:
  * 1. Real Express API server with sample endpoints
  * 2. AgentPass auto-discovery of API endpoints
- * 3. MCP server generation with stdio transport for Claude Desktop
+ * 3. MCP server generation with SSE transport for mcp-remote + Claude Desktop
  * 
- * Usage: npx ts-node examples/complete-servers/stdio-server.ts
+ * Usage: npx ts-node examples/complete-servers/sse-server.ts
  */
 
-import { AgentPass } from '../../src';
+import { AgentPass } from '../src';
 import { createSampleAPI, toolNaming, toolDescription } from './shared/api-data';
 
-async function startStdioMCPServer() {
-  console.error('🚀 Starting Complete MCP Server (stdio transport for Claude Desktop)...');
+async function startSSEMCPServer() {
+  console.error('🚀 Starting Complete MCP Server (SSE transport for mcp-remote + Claude Desktop)...');
 
   try {
     // Create Express API server
@@ -38,12 +38,15 @@ async function startStdioMCPServer() {
     
     console.error(`✅ Discovered ${endpoints.length} API endpoints`);
 
-    // Generate MCP server with stdio transport
+    // Generate MCP server with SSE transport
     const mcpServer = await agentpass.generateMCPServer({
-      name: 'company-management-mcp-server',
+      name: 'company-management-mcp-server-sse',
       version: '1.0.0',
-      description: 'MCP Server for Company Management - stdio transport for Claude Desktop',
-      transport: 'stdio',
+      description: 'MCP Server for Company Management - SSE transport for mcp-remote',
+      transport: 'sse',
+      port: 0, // Use random available port
+      host: 'localhost',
+      cors: true,
       baseUrl: `http://localhost:${(apiServer.address() as any)?.port}`,
       toolNaming,
       toolDescription
@@ -51,11 +54,13 @@ async function startStdioMCPServer() {
 
     // Start MCP server
     await mcpServer.start();
+    const mcpAddress = mcpServer.getAddress();
     
     console.error('✅ MCP Server started successfully!');
     console.error(`📋 Server Info:`);
     console.error(`   Name: ${mcpServer.info.name}`);
     console.error(`   Transport: ${mcpServer.transport.type}`);
+    console.error(`   MCP Server: ${mcpAddress}`);
     console.error(`   Tools Available: ${endpoints.length}`);
     console.error('');
     console.error('🔧 Available Tools for Claude:');
@@ -64,18 +69,24 @@ async function startStdioMCPServer() {
       console.error(`   ${index + 1}. ${toolName} - ${endpoint.method} ${endpoint.path}`);
     });
     console.error('');
-    console.error('🎯 Claude Desktop Configuration (stdio):');
+    console.error('🌐 SSE MCP Server Ready!');
+    console.error(`📡 SSE Endpoint: ${mcpAddress}/sse`);
+    console.error(`📡 Messages Endpoint: ${mcpAddress}/sse/messages`);
+    console.error('');
+    console.error('🎯 Claude Desktop Configuration (mcp-remote):');
     console.error('   {');
     console.error('     "mcpServers": {');
     console.error('       "company-api": {');
     console.error('         "command": "npx",');
     console.error('         "args": [');
-    console.error('           "ts-node",');
-    console.error(`           "${process.cwd()}/examples/complete-servers/stdio-server.ts"`);
+    console.error('           "mcp-remote",');
+    console.error(`           "${mcpAddress}/sse"`);
     console.error('         ]');
     console.error('       }');
     console.error('     }');
     console.error('   }');
+    console.error('');
+    console.error('🔍 Debug: All HTTP requests will be logged below...');
 
     // Graceful shutdown
     const cleanup = async () => {
@@ -104,4 +115,4 @@ async function startStdioMCPServer() {
 }
 
 // Start the server
-startStdioMCPServer();
+startSSEMCPServer();

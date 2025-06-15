@@ -319,7 +319,7 @@ describe('MCP Real Clients E2E Tests', () => {
         'ts-node', 
         '--project', 
         'examples/tsconfig.json', 
-        'examples/complete-servers/stdio-server.ts'
+        'examples/stdio-server.ts'
       ];
 
       // 1. Create stdio client transport 

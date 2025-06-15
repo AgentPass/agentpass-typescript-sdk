@@ -21,15 +21,13 @@
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "prepublishOnly": "npm run build",
-    "example:getting-started": "node examples/run-example.js",
     "example:express": "node examples/run-example.js",
     "example:fastify": "node examples/run-example.js",
     "example:koa": "node examples/run-example.js",
-    "example:ecommerce": "node examples/run-example.js",
     "example:openapi": "node examples/run-example.js",
-    "example:complete:stdio": "npx ts-node --project examples/tsconfig.json examples/complete-servers/stdio-server.ts",
-    "example:complete:http": "npx ts-node --project examples/tsconfig.json examples/complete-servers/http-server.ts",
-    "example:complete:sse": "npx ts-node --project examples/tsconfig.json examples/complete-servers/sse-server.ts"
+    "example:complete:stdio": "npx ts-node --project examples/tsconfig.json examples/stdio-server.ts",
+    "example:complete:http": "npx ts-node --project examples/tsconfig.json examples/http-server.ts",
+    "example:complete:sse": "npx ts-node --project examples/tsconfig.json examples/sse-server.ts"
   },
   "keywords": [
     "mcp",

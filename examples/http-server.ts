@@ -1,21 +1,21 @@
 #!/usr/bin/env ts-node
 
 /**
- * Complete MCP Server with Built-in API - SSE Transport
+ * Complete MCP Server with Built-in API - HTTP Transport
  * 
  * This example demonstrates a complete MCP server setup with:
  * 1. Real Express API server with sample endpoints
  * 2. AgentPass auto-discovery of API endpoints
- * 3. MCP server generation with SSE transport for mcp-remote + Claude Desktop
+ * 3. MCP server generation with HTTP transport for web clients
  * 
- * Usage: npx ts-node examples/complete-servers/sse-server.ts
+ * Usage: npx ts-node examples/complete-servers/http-server.ts
  */
 
-import { AgentPass } from '../../src';
+import { AgentPass } from '../src';
 import { createSampleAPI, toolNaming, toolDescription } from './shared/api-data';
 
-async function startSSEMCPServer() {
-  console.error('🚀 Starting Complete MCP Server (SSE transport for mcp-remote + Claude Desktop)...');
+async function startHttpMCPServer() {
+  console.error('🚀 Starting Complete MCP Server (HTTP transport for web clients)...');
 
   try {
     // Create Express API server
@@ -38,12 +38,12 @@ async function startSSEMCPServer() {
     
     console.error(`✅ Discovered ${endpoints.length} API endpoints`);
 
-    // Generate MCP server with SSE transport
+    // Generate MCP server with HTTP transport
     const mcpServer = await agentpass.generateMCPServer({
-      name: 'company-management-mcp-server-sse',
+      name: 'company-management-mcp-server-http',
       version: '1.0.0',
-      description: 'MCP Server for Company Management - SSE transport for mcp-remote',
-      transport: 'sse',
+      description: 'MCP Server for Company Management - HTTP transport for web clients',
+      transport: 'http',
       port: 0, // Use random available port
       host: 'localhost',
       cors: true,
@@ -69,24 +69,13 @@ async function startSSEMCPServer() {
       console.error(`   ${index + 1}. ${toolName} - ${endpoint.method} ${endpoint.path}`);
     });
     console.error('');
-    console.error('🌐 SSE MCP Server Ready!');
-    console.error(`📡 SSE Endpoint: ${mcpAddress}/sse`);
-    console.error(`📡 Messages Endpoint: ${mcpAddress}/sse/messages`);
+    console.error('🌐 HTTP MCP Server Ready!');
+    console.error(`📡 MCP Endpoint: ${mcpAddress}/mcp`);
     console.error('');
-    console.error('🎯 Claude Desktop Configuration (mcp-remote):');
-    console.error('   {');
-    console.error('     "mcpServers": {');
-    console.error('       "company-api": {');
-    console.error('         "command": "npx",');
-    console.error('         "args": [');
-    console.error('           "mcp-remote",');
-    console.error(`           "${mcpAddress}/sse"`);
-    console.error('         ]');
-    console.error('       }');
-    console.error('     }');
-    console.error('   }');
-    console.error('');
-    console.error('🔍 Debug: All HTTP requests will be logged below...');
+    console.error('🔧 Test with curl:');
+    console.error(`   curl -X POST ${mcpAddress}/mcp \\`);
+    console.error('     -H "Content-Type: application/json" \\');
+    console.error('     -d \'{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}\'');
 
     // Graceful shutdown
     const cleanup = async () => {
@@ -115,4 +104,4 @@ async function startSSEMCPServer() {
 }
 
 // Start the server
-startSSEMCPServer();
+startHttpMCPServer();
