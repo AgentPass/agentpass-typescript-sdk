@@ -10,8 +10,7 @@ import {
 } from '../core/types';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-// Note: SSE is deprecated in favor of HTTP
-// import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AgentPass } from '../core/AgentPass';
 import { MiddlewareRunner } from '../middleware/MiddlewareRunner';
@@ -26,7 +25,7 @@ class AgentPassMCPServer implements MCPServer {
   public transport: { type: 'stdio' | 'sse' | 'http'; config?: Record<string, unknown> };
   
   private server: Server;
-  private serverTransport: StdioServerTransport | null = null;
+  private serverTransport: StdioServerTransport | SSEServerTransport | null = null;
   private httpServer: http.Server | null = null; // For HTTP/SSE transports
   private isServerRunning = false;
   private mcpTools: MCPTool[] = [];
@@ -63,7 +62,8 @@ class AgentPassMCPServer implements MCPServer {
         await this.startHTTPServer();
         break;
       case 'sse':
-        throw new MCPError('SSE transport is deprecated. Please use HTTP transport instead.');
+        await this.startSSEServer();
+        break;
       default:
         throw new MCPError(`Unsupported transport type: ${this.transport.type}`);
     }
@@ -103,6 +103,88 @@ class AgentPassMCPServer implements MCPServer {
       });
       this.httpServer!.on('error', reject);
     });
+  }
+
+  private async startSSEServer(): Promise<void> {
+    const port = (this.transport.config?.port as number) ?? 3000;
+    const host = (this.transport.config?.host as string) || 'localhost';
+    const sseEndpoint = '/sse';
+    const messagesEndpoint = '/sse/messages';
+
+    this.httpServer = http.createServer((req, res) => {
+      // Debug logging
+      console.error(`[SSE] ${req.method} ${req.url} from ${req.headers['user-agent'] || 'unknown'}`);
+      
+      // Set CORS headers
+      if (this.transport.config?.cors) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Cache-Control');
+      }
+
+      if (req.method === 'OPTIONS') {
+        console.error(`[SSE] CORS preflight for ${req.url}`);
+        res.writeHead(200);
+        res.end();
+        return;
+      }
+
+      // Parse URL to handle query parameters
+      const urlParts = req.url?.split('?') || [''];
+      const pathname = urlParts[0];
+
+      if (req.method === 'GET' && pathname === sseEndpoint) {
+        console.error(`[SSE] Establishing SSE connection to ${sseEndpoint}`);
+        this.handleSSEConnection(req, res, messagesEndpoint);
+      } else if (req.method === 'POST' && pathname === messagesEndpoint) {
+        console.error(`[SSE] Handling message to ${messagesEndpoint}`);
+        this.handleSSEMessage(req, res);
+      } else {
+        console.error(`[SSE] 404 - Unknown endpoint: ${req.method} ${req.url}`);
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end(`Not found: ${req.method} ${req.url}`);
+      }
+    });
+
+    return new Promise((resolve, reject) => {
+      this.httpServer!.listen(port, host, () => {
+        resolve();
+      });
+      this.httpServer!.on('error', reject);
+    });
+  }
+
+  private async handleSSEConnection(req: http.IncomingMessage, res: http.ServerResponse, messagesEndpoint: string): Promise<void> {
+    try {
+      // Create SSE transport with the messages endpoint
+      this.serverTransport = new SSEServerTransport(messagesEndpoint, res);
+      
+      // Connect the server to the transport (this automatically calls start())
+      await this.server.connect(this.serverTransport);
+      
+      console.error(`[SSE] SSE connection established, session ID: ${this.serverTransport.sessionId}`);
+    } catch (error) {
+      console.error('SSE connection error:', error);
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal server error');
+      }
+    }
+  }
+
+  private async handleSSEMessage(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    try {
+      if (this.serverTransport instanceof SSEServerTransport) {
+        await this.serverTransport.handlePostMessage(req, res);
+      } else {
+        res.writeHead(400);
+        res.end('No SSE connection established');
+      }
+    } catch (error) {
+      console.error('SSE message error:', error);
+      res.writeHead(500);
+      res.end('Internal server error');
+    }
   }
 
   private async handleMCPRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
@@ -254,8 +336,8 @@ export class MCPGenerator {
     };
 
     // Validate transport type
-    if (config.transport === 'sse') {
-      throw new MCPError('SSE transport is deprecated. Please use HTTP transport instead.');
+    if (!['stdio', 'http', 'sse'].includes(config.transport)) {
+      throw new MCPError(`Unsupported transport type: ${config.transport}. Supported types: stdio, http, sse`);
     }
 
     // Convert endpoints to MCP tools

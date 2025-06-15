@@ -146,10 +146,15 @@ tests/
 
 ## Transport Types
 
-### stdio Transport (Claude Desktop)
+### stdio Transport (Claude Desktop - Traditional)
 - Uses stdin/stdout for communication
 - Perfect for desktop AI applications
 - Configuration in `claude_desktop_config.json`
+
+### SSE Transport (Claude Desktop - Modern)
+- Server-Sent Events with HTTP POST for messages
+- Native Claude Desktop support for newer versions
+- Endpoints: `GET /sse` (stream), `POST /sse` (messages)
 
 ### HTTP Transport (Web Clients)
 - RESTful JSON-RPC 2.0 over HTTP
@@ -164,6 +169,13 @@ The `complete-mcp-server.mjs` file demonstrates a full implementation for Claude
 2. **Auto-Discovery**: Automatically discovers all Express routes
 3. **MCP Generation**: Converts endpoints to MCP tools
 4. **stdio Transport**: Integrated execution for Claude Desktop via stdin/stdout
+
+### SSE Transport (`complete-mcp-server-sse.mjs`)
+The `complete-mcp-server-sse.mjs` file demonstrates SSE transport for Claude Desktop:
+1. **Same Express API**: Identical REST API endpoints
+2. **SSE Transport**: Server-Sent Events with HTTP POST for bidirectional communication
+3. **Claude Desktop Ready**: Native support for modern Claude Desktop versions
+4. **Real-time Communication**: Efficient streaming for responsive interactions
 
 ### HTTP Transport (`complete-mcp-server-http.mjs`)
 The `complete-mcp-server-http.mjs` file demonstrates HTTP transport for web clients:
@@ -216,6 +228,7 @@ npm run example:express
 
 # Complete MCP servers
 node complete-mcp-server.mjs      # stdio transport for Claude Desktop
+node complete-mcp-server-sse.mjs  # SSE transport for Claude Desktop (modern)
 node complete-mcp-server-http.mjs # HTTP transport for web clients
 ```
 

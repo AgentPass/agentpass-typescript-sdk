@@ -194,7 +194,7 @@ export interface MCPOptions {
     prompts?: boolean;
     logging?: boolean;
   };
-  transport?: 'stdio' | 'sse' | 'http';
+  transport?: 'stdio' | 'http' | 'sse';
   port?: number; // For SSE/HTTP transports
   host?: string; // For SSE/HTTP transports
   cors?: boolean; // For HTTP transport
@@ -233,7 +233,7 @@ export interface MCPServer {
     logging?: boolean;
   };
   transport: {
-    type: 'stdio' | 'sse' | 'http';
+    type: 'stdio' | 'http' | 'sse';
     config?: Record<string, unknown>;
   };
   start(): Promise<void>;

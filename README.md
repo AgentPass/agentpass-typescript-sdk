@@ -478,6 +478,9 @@ npm run example:ecommerce
 # Complete MCP server with built-in API (stdio transport for Claude Desktop)
 node complete-mcp-server.mjs
 
+# Complete MCP server with SSE transport (for modern Claude Desktop)
+node complete-mcp-server-sse.mjs
+
 # Complete MCP server with HTTP transport (for web clients)
 node complete-mcp-server-http.mjs
 ```
@@ -486,7 +489,7 @@ The complete examples demonstrate:
 - **Real API Server**: Working Express server with multiple endpoints
 - **Auto-Discovery**: Automatic endpoint detection and conversion
 - **MCP Integration**: Ready-to-use MCP server with tools
-- **Transport Options**: Both stdio (Claude Desktop) and HTTP (web clients)
+- **Transport Options**: stdio, SSE (Claude Desktop) and HTTP (web clients)
 
 ## 🧪 Testing
 
@@ -528,8 +531,11 @@ npm run lint
 For production use, start with our complete examples:
 
 ```bash
-# For Claude Desktop (stdio transport)
+# For Claude Desktop (stdio transport - traditional)
 node complete-mcp-server.mjs
+
+# For Claude Desktop (SSE transport - modern)
+node complete-mcp-server-sse.mjs
 
 # For web clients (HTTP transport)
 node complete-mcp-server-http.mjs
