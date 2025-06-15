@@ -79,6 +79,43 @@ const mcpServer = await agentpass.generateMCPServer({
 await mcpServer.start();
 ```
 
+### Basic Fastify Integration
+
+```typescript
+import { AgentPass } from 'agentpass';
+import fastify from 'fastify';
+
+// Your existing Fastify app
+const app = fastify();
+await app.register(async function (fastify) {
+  fastify.get('/users/:id', async (request, reply) => {
+    const { id } = request.params;
+    return { id, name: 'John Doe' };
+  });
+});
+
+// Create AgentPass instance
+const agentpass = new AgentPass({
+  name: 'my-fastify-service',
+  version: '1.0.0',
+  description: 'My Fastify API exposed as MCP tools'
+});
+
+// Auto-discover endpoints
+await agentpass.discover({ 
+  app, 
+  framework: 'fastify' 
+});
+
+// Generate MCP server for Claude Desktop
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio',
+  baseUrl: 'http://localhost:3000'
+});
+
+await mcpServer.start();
+```
+
 ### OpenAPI/Swagger Integration
 
 ```typescript
@@ -104,6 +141,15 @@ const mcpServer = await agentpass.generateMCPServer({
 });
 
 await mcpServer.start();
+
+// Connect with MCP SDK client:
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3001/mcp"));
+const client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: { tools: {} } });
+await client.connect(transport);
+const tools = await client.listTools();
 ```
 
 ## 🔧 MCP Transport Options
@@ -145,6 +191,17 @@ const mcpServer = await agentpass.generateMCPServer({
   cors: true,
   baseUrl: 'http://localhost:3000'
 });
+
+await mcpServer.start();
+
+// Connect with MCP SDK client:
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+
+const transport = new StreamableHTTPClientTransport(new URL("http://localhost:3001/mcp"));
+const client = new Client({ name: "test-client", version: "1.0.0" }, { capabilities: { tools: {} } });
+await client.connect(transport);
+const tools = await client.listTools();
 ```
 
 ### 3. SSE (mcp-remote)
@@ -297,32 +354,60 @@ await agentpass.discover({
 
 ## 📚 Examples
 
-The project includes comprehensive examples in the `examples/` directory:
+The project includes comprehensive examples organized by framework in the `examples/` directory:
 
-- **[Production MCP Servers](examples/)** - Complete stdio, HTTP, and SSE transport servers
+### Framework Examples
+- **[Express Examples](examples/express/)** - Complete Express.js implementation with stdio, HTTP, and SSE servers
+- **[Fastify Examples](examples/fastify/)** - Complete Fastify implementation with stdio, HTTP, and SSE servers  
 - **[OpenAPI Integration](examples/integrations/)** - OpenAPI/Swagger specification parsing
+
+### Example Structure
+```
+examples/
+├── express/
+│   ├── api-implementation.ts    # Express-specific API server
+│   ├── stdio-server.ts         # Express stdio MCP server
+│   ├── http-server.ts          # Express HTTP MCP server
+│   └── sse-server.ts           # Express SSE MCP server
+├── fastify/
+│   ├── api-implementation.ts    # Fastify-specific API server
+│   ├── stdio-server.ts         # Fastify stdio MCP server
+│   ├── http-server.ts          # Fastify HTTP MCP server
+│   └── sse-server.ts           # Fastify SSE MCP server
+├── shared/
+│   └── api-data.ts             # Shared JSON data and utilities
+└── integrations/
+    └── openapi-petstore.ts     # OpenAPI example
+```
 
 ### Running Examples
 
 All framework examples support transport selection:
 
 ```bash
-# Run with different transports
+# Express examples with different transports
 npm run example:express -- --transport=stdio  # Default (Claude Desktop)
 npm run example:express -- --transport=http   # Web clients
 npm run example:express -- --transport=sse    # mcp-remote
 
-# Same transport options work for all frameworks
-npm run example:fastify -- --transport=http
-npm run example:koa -- --transport=sse
+# Fastify examples with different transports
+npm run example:fastify -- --transport=stdio  # Default (Claude Desktop)
+npm run example:fastify -- --transport=http   # Web clients
+npm run example:fastify -- --transport=sse    # mcp-remote
+
+# Koa examples (when available)
+npm run example:koa -- --transport=stdio
 
 # OpenAPI example
 npm run example:openapi
 
 # Direct server access (if you prefer explicit commands)
-npm run example:complete:stdio
-npm run example:complete:http  
-npm run example:complete:sse
+npm run example:complete:express:stdio
+npm run example:complete:express:http  
+npm run example:complete:express:sse
+npm run example:complete:fastify:stdio
+npm run example:complete:fastify:http  
+npm run example:complete:fastify:sse
 ```
 
 ## 🧪 Testing
@@ -344,8 +429,12 @@ npm run test:coverage
 ```
 
 ### Test Coverage
-- **Unit Tests**: Core functionality, middleware, plugins
-- **E2E Tests**: Framework integration, real MCP client communication
+- **Unit Tests**: Core functionality, middleware, plugins, and discovery engines
+- **E2E Tests**: 
+  - Express integration with stdio/HTTP/SSE transports using real MCP SDK clients
+  - Fastify integration with stdio/HTTP/SSE transports using real MCP SDK clients
+  - Real MCP client communication (no raw HTTP calls)
+  - Full protocol compliance testing
 - **Documentation Tests**: All README examples validated at runtime
 
 ## 🔌 Plugin System

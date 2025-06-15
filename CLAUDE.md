@@ -18,8 +18,8 @@
    - **Base**: `BaseDiscoverer.ts` - Abstract base class with logging and validation
    - **Framework Discoverers**:
      - `ExpressDiscoverer.ts` - Express.js route introspection and middleware analysis
-     - `FastifyDiscoverer.ts` - Fastify schema-aware discovery with multiple access methods
-     - `KoaDiscoverer.ts` - Koa/koa-router support with middleware chain analysis
+     - `FastifyDiscoverer.ts` - Fastify schema-aware discovery with intelligent inject() method probing
+     - `KoaDiscoverer.ts` - Koa/koa-router support with middleware chain analysis  
      - `NestJSDiscoverer.ts` - NestJS decorator analysis and module introspection
      - `NextJSDiscoverer.ts` - Next.js API routes file system scanning
    - **Specification Discoverers**:
@@ -46,6 +46,9 @@
 
 ### 🔍 Auto-Discovery Capabilities
 - **Framework Introspection**: Direct analysis of Express, Fastify, Koa, NestJS, Next.js app instances
+  - **Express**: Route introspection via app._router analysis
+  - **Fastify**: Advanced route discovery using inject() method probing and register() pattern support
+  - **Koa**: Router middleware chain analysis
 - **OpenAPI/Swagger**: Complete spec parsing with schema validation and reference resolution
 - **URL Crawling**: Intelligent endpoint discovery through HTTP response analysis
 - **Manual Definition**: Programmatic endpoint registration for custom scenarios
@@ -151,11 +154,15 @@ const mcpServer = await agentpass.generateMCPServer({
 - Plugin system integration
 
 **E2E Tests** (`tests/e2e/`):
-- **Framework Integration**: Real framework app discovery and MCP generation
-- **Real MCP Communication**: Using official MCP SDK clients for all transports
-- **Transport Validation**: HTTP (StreamableHTTP), SSE, stdio transport testing
-- **OpenAPI Parsing**: Complete specification parsing and tool generation
-- **Documentation Validation**: All README examples tested at runtime
+- **Express Integration**: Complete stdio/HTTP/SSE transport testing with real MCP SDK clients
+- **Fastify Integration**: Complete stdio/HTTP/SSE transport testing with real MCP SDK clients
+- **Real MCP Communication**: Using official `@modelcontextprotocol/sdk` clients (no raw HTTP calls)
+- **Transport Validation**: 
+  - stdio: `StdioClientTransport` for Claude Desktop integration
+  - HTTP: `StreamableHTTPClientTransport` for web clients  
+  - SSE: `SSEClientTransport` for mcp-remote connections
+- **Protocol Compliance**: Full MCP protocol handshake and session management
+- **Comprehensive Coverage**: 6 E2E tests (3 Express + 3 Fastify) covering all transports
 
 ### E2E Test Architecture
 ```typescript
@@ -179,15 +186,29 @@ const result = await httpClient.callTool({ name: "get_users", arguments: {} });
 
 ## Complete MCP Server Examples
 
-### Production-Ready Examples (`examples/complete-servers/`)
+### Framework-Organized Examples
 
-**Common Architecture** - All examples use shared API implementation:
-- **Sample Data**: Realistic business data (users, projects, departments)
-- **REST Endpoints**: Standardized CRUD operations with filtering and pagination
-- **Tool Naming**: Business-friendly MCP tool names
-- **Error Handling**: Comprehensive HTTP status code handling
+**Architecture**: Examples are organized by framework with consistent transport support:
 
-**Key Endpoints** (shared across all examples):
+```
+examples/
+├── express/                  # Express.js implementations
+│   ├── api-implementation.ts    # Express-specific API server
+│   ├── stdio-server.ts         # stdio transport for Claude Desktop
+│   ├── http-server.ts          # HTTP transport for web clients
+│   └── sse-server.ts           # SSE transport for mcp-remote
+├── fastify/                  # Fastify implementations
+│   ├── api-implementation.ts    # Fastify-specific API server
+│   ├── stdio-server.ts         # stdio transport for Claude Desktop
+│   ├── http-server.ts          # HTTP transport for web clients
+│   └── sse-server.ts           # SSE transport for mcp-remote
+├── shared/                   # Common utilities
+│   └── api-data.ts            # Shared JSON data and tool utilities
+└── integrations/             # Specification examples
+    └── openapi-petstore.ts    # OpenAPI/Swagger parsing
+```
+
+**Common API Features** (identical across Express and Fastify):
 - `GET /api/users` - User management with filtering (`?role=admin&department=Engineering`)
 - `GET /api/users/:id` - Individual user details with department info
 - `POST /api/users` - Create new users with validation
@@ -195,43 +216,81 @@ const result = await httpClient.callTool({ name: "get_users", arguments: {} });
 - `GET /api/departments` - Department information with budget data
 - `GET /api/analytics/overview` - Business analytics dashboard
 
-#### 1. stdio Transport (`examples/stdio-server.ts`)
+### Express Examples (`examples/express/`)
+
+#### stdio Transport (`examples/express/stdio-server.ts`)
 **Purpose**: Claude Desktop integration via stdin/stdout
 ```bash
-npm run example:complete:stdio
+npm run example:express -- --transport=stdio
+# OR: npm run example:complete:express:stdio
 ```
 - **Real Express API**: Complete REST API with business logic
 - **Auto-Discovery**: Discovers all Express routes automatically
 - **MCP Generation**: Converts to 6 MCP tools with business-friendly names
 - **Claude Desktop Ready**: Direct integration via claude_desktop_config.json
 
-#### 2. SSE Transport (`examples/sse-server.ts`)
+#### HTTP Transport (`examples/express/http-server.ts`) 
+**Purpose**: Web clients and direct HTTP access
+```bash
+npm run example:express -- --transport=http
+# OR: npm run example:complete:express:http
+```
+- **StreamableHTTP**: Uses official MCP SDK StreamableHTTPServerTransport
+- **Full Protocol**: Complete MCP initialization handshake
+- **CORS Enabled**: Browser-compatible with proper CORS headers
+- **MCP SDK Usage**: Shows proper client connection code (no curl)
+
+#### SSE Transport (`examples/express/sse-server.ts`)
 **Purpose**: mcp-remote + Claude Desktop integration
 ```bash
-npm run example:complete:sse
+npm run example:express -- --transport=sse
+# OR: npm run example:complete:express:sse
 ```
-- **Same API**: Identical REST endpoints using shared module
 - **SSE Transport**: Server-Sent Events with HTTP POST for bidirectional communication
 - **mcp-remote Compatible**: Works with mcp-remote package for Claude Desktop bridge
 - **Session Management**: Proper session ID handling
 
-#### 3. HTTP Transport (`examples/http-server.ts`)
+### Fastify Examples (`examples/fastify/`)
+
+#### stdio Transport (`examples/fastify/stdio-server.ts`)
+**Purpose**: Claude Desktop integration via stdin/stdout
+```bash
+npm run example:fastify -- --transport=stdio
+# OR: npm run example:complete:fastify:stdio
+```
+- **Real Fastify API**: Complete REST API with async/await patterns
+- **Plugin Architecture**: Uses Fastify's register() pattern for route organization
+- **Auto-Discovery**: Advanced route discovery using inject() method
+- **Identical Functionality**: Same 6 MCP tools as Express version
+
+#### HTTP Transport (`examples/fastify/http-server.ts`)
 **Purpose**: Web clients and direct HTTP access
 ```bash
-npm run example:complete:http
+npm run example:fastify -- --transport=http
+# OR: npm run example:complete:fastify:http
 ```
-- **Same API**: Identical REST endpoints using shared module
 - **StreamableHTTP**: Uses official MCP SDK StreamableHTTPServerTransport
 - **Full Protocol**: Complete MCP initialization handshake
 - **CORS Enabled**: Browser-compatible with proper CORS headers
+- **MCP SDK Usage**: Shows proper client connection code (no curl)
+
+#### SSE Transport (`examples/fastify/sse-server.ts`)
+**Purpose**: mcp-remote + Claude Desktop integration
+```bash
+npm run example:fastify -- --transport=sse
+# OR: npm run example:complete:fastify:sse
+```
+- **SSE Transport**: Server-Sent Events with HTTP POST for bidirectional communication
+- **mcp-remote Compatible**: Works with mcp-remote package for Claude Desktop bridge
+- **Session Management**: Proper session ID handling
 
 ### Shared Utilities (`examples/shared/`)
 
-**api-data.ts** - Common API implementation:
-- **Tool Naming Strategy**: Consistent MCP tool naming across all transports
+**api-data.ts** - Framework-agnostic shared resources:
+- **JSON Data**: Users, projects, departments sample datasets
+- **Tool Naming Strategy**: Consistent MCP tool naming across all frameworks
 - **Tool Descriptions**: Business-friendly descriptions for AI assistants
-- **Sample Data**: Realistic datasets for demonstration
-- **Endpoint Configuration**: Standardized REST API structure
+- **Utility Functions**: Common helpers for consistent behavior
 
 ## Development Workflow
 
