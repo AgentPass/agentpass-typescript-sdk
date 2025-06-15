@@ -1,64 +1,128 @@
 #!/usr/bin/env ts-node
 
 /**
- * Complete MCP Server with Built-in API - Fastify
+ * Complete MCP Server with OpenAPI Discovery
  * 
  * This example demonstrates a complete MCP server setup with:
- * 1. Real Fastify API server with sample endpoints
- * 2. AgentPass auto-discovery of API endpoints
+ * 1. OpenAPI specification parsing and endpoint discovery
+ * 2. AgentPass auto-discovery from OpenAPI spec
  * 3. MCP server generation with configurable transport
  * 
  * Usage: 
- *   npx ts-node examples/fastify/server.ts [transport]
+ *   npx ts-node examples/openapi/server.ts [transport]
  *   - transport: stdio (default), http, sse
  * 
  * Examples:
- *   npx ts-node examples/fastify/server.ts
- *   npx ts-node examples/fastify/server.ts stdio
- *   npx ts-node examples/fastify/server.ts http
- *   npx ts-node examples/fastify/server.ts sse
+ *   npx ts-node examples/openapi/server.ts
+ *   npx ts-node examples/openapi/server.ts stdio
+ *   npx ts-node examples/openapi/server.ts http
+ *   npx ts-node examples/openapi/server.ts sse
  */
 
 import { AgentPass } from '../../src';
-import { createSampleAPI } from './api-implementation';
-import { toolNaming, toolDescription } from '../shared/api-data';
 
 type TransportType = 'stdio' | 'http' | 'sse';
 
+// Tool naming function similar to Express/Fastify examples
+const toolNaming = (endpoint: any) => {
+  // Use OpenAPI operation ID if available, otherwise generate
+  if (endpoint.metadata?.operationId && typeof endpoint.metadata.operationId === 'string') {
+    return endpoint.metadata.operationId;
+  }
+  
+  const method = endpoint.method.toLowerCase();
+  const pathParts = endpoint.path.split('/').filter((part: string) => part && !part.startsWith('{'));
+  const resource = pathParts[pathParts.length - 1] || 'resource';
+  
+  return `${method}_${resource}`;
+};
+
+// Tool description function similar to Express/Fastify examples
+const toolDescription = (endpoint: any) => {
+  let description = endpoint.summary || endpoint.description || `${endpoint.method} ${endpoint.path}`;
+  
+  // Add parameter information
+  const pathParams = endpoint.parameters?.filter((p: any) => p.in === 'path') || [];
+  const queryParams = endpoint.parameters?.filter((p: any) => p.in === 'query') || [];
+  
+  if (pathParams.length > 0) {
+    description += `\n\nPath parameters: ${pathParams.map((p: any) => `${p.name} (${p.type})`).join(', ')}`;
+  }
+  
+  if (queryParams.length > 0) {
+    description += `\n\nQuery parameters: ${queryParams.map((p: any) => `${p.name} (${p.type}${p.required ? ', required' : ''})`).join(', ')}`;
+  }
+  
+  return description;
+};
+
 async function startMCPServer(transport: TransportType = 'sse') {
-  console.error(`🚀 Starting Complete MCP Server (${transport} transport - Fastify)...`);
+  console.error(`🚀 Starting Complete MCP Server (${transport} transport - OpenAPI)...`);
 
   try {
-    // Create Fastify API server
-    const app = await createSampleAPI();
-
-    // Create AgentPass instance with auto-discovery BEFORE starting server
+    // Create AgentPass instance with auto-discovery from OpenAPI spec URL
     const agentpass = await AgentPass.create({
-      name: 'company-management-api-fastify',
+      name: 'petstore-api',
       version: '1.0.0',
-      description: 'Company Management API - User, Project, and Analytics Tools (Fastify)',
-      app,
-      framework: 'fastify'
+      description: 'Petstore API from OpenAPI specification',
+      framework: 'openapi',
+      openapi: 'https://petstore3.swagger.io/api/v3/openapi.json',
+      baseUrl: 'https://petstore3.swagger.io/api/v3'
     });
     const endpoints = agentpass.getEndpoints();
 
-    // Now start the Fastify server
-    await app.listen({ port: 0, host: 'localhost' });
-    const address = app.server.address();
-    const port = typeof address === 'object' && address ? address.port : 3000;
-    console.error(`✅ Fastify API server running on http://localhost:${port}`);
-    
     console.error(`✅ Discovered ${endpoints.length} API endpoints`);
+
+    // Add authentication for protected endpoints
+    agentpass.use('auth', async (context) => {
+      // Simple API key auth for demo
+      const apiKey = context.request.headers['api_key'];
+      if (!apiKey && context.endpoint.security?.length) {
+        throw new Error('API key required for this endpoint');
+      }
+      return apiKey ? { apiKey } : null;
+    });
+
+    // Add request logging
+    agentpass.use('pre', async (context) => {
+      console.error(`🌐 Making request: ${context.request.method} ${context.request.path}`);
+      if (context.request.params && Object.keys(context.request.params).length > 0) {
+        console.error(`  📋 Params:`, context.request.params);
+      }
+      if (context.request.query && Object.keys(context.request.query).length > 0) {
+        console.error(`  🔍 Query:`, context.request.query);
+      }
+    });
+
+    // Transform responses to add metadata
+    agentpass.use('post', async (context, response) => {
+      return {
+        ...response,
+        data: {
+          ...response.data,
+          _petstore_metadata: {
+            endpoint: context.endpoint.path,
+            method: context.endpoint.method,
+            timestamp: new Date().toISOString(),
+            openapi_operation: context.endpoint.metadata?.operationId,
+          },
+        },
+      };
+    });
 
     // Generate MCP server configuration based on transport
     const baseConfig = {
-      name: `company-management-mcp-server-${transport}-fastify`,
+      name: `petstore-mcp-server-${transport}`,
       version: '1.0.0',
-      description: `MCP Server for Company Management - ${transport} transport (Fastify)`,
+      description: `MCP Server for Petstore API - ${transport} transport`,
       transport,
-      baseUrl: `http://localhost:${port}`,
+      baseUrl: 'https://petstore3.swagger.io/api/v3',
       toolNaming,
-      toolDescription
+      toolDescription,
+      metadata: {
+        source: 'OpenAPI Specification',
+        documentation: 'https://petstore3.swagger.io',
+      },
     };
 
     const mcpConfig = transport === 'stdio' 
@@ -95,11 +159,11 @@ async function startMCPServer(transport: TransportType = 'sse') {
       console.error('🎯 Claude Desktop Configuration (stdio):');
       console.error('   {');
       console.error('     "mcpServers": {');
-      console.error('       "company-api-fastify": {');
+      console.error('       "petstore-api": {');
       console.error('         "command": "npx",');
       console.error('         "args": [');
       console.error('           "ts-node",');
-      console.error(`           "${process.cwd()}/examples/fastify/server.ts",`);
+      console.error(`           "${process.cwd()}/examples/openapi/server.ts",`);
       console.error('           "stdio"');
       console.error('         ]');
       console.error('       }');
@@ -127,7 +191,7 @@ async function startMCPServer(transport: TransportType = 'sse') {
       console.error('🎯 Claude Desktop Configuration (mcp-remote):');
       console.error('   {');
       console.error('     "mcpServers": {');
-      console.error('       "company-api-fastify": {');
+      console.error('       "petstore-api": {');
       console.error('         "command": "npx",');
       console.error('         "args": [');
       console.error('           "mcp-remote",');
@@ -145,7 +209,6 @@ async function startMCPServer(transport: TransportType = 'sse') {
       console.error('\n🛑 Shutting down servers...');
       try {
         await mcpServer.stop();
-        await app.close();
         console.error('✅ Servers stopped gracefully');
       } catch (error) {
         console.error('❌ Error during shutdown:', (error as Error).message);

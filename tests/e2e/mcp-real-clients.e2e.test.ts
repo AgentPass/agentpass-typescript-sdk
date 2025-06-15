@@ -18,6 +18,8 @@ describe('MCP Real Clients E2E Tests', () => {
   let fastifyApp: FastifyInstance;
   let fastifyPort: number;
   let fastifyAgentpass: AgentPass;
+  
+  let openApiAgentpass: AgentPass;
 
   beforeAll(async () => {
     // Create a real Express server with test endpoints
@@ -127,7 +129,18 @@ describe('MCP Real Clients E2E Tests', () => {
     const fastifyAddress = fastifyApp.server.address();
     fastifyPort = typeof fastifyAddress === 'object' && fastifyAddress ? fastifyAddress.port : 3001;
     console.log(`Test Fastify server started on port ${fastifyPort}`);
-  }, 15000);
+
+    // Create OpenAPI AgentPass instance with real API URL
+    openApiAgentpass = await AgentPass.create({
+      name: 'test-petstore-api',
+      version: '1.0.0',
+      description: 'Test Petstore API from OpenAPI specification',
+      framework: 'openapi',
+      openapi: 'https://petstore3.swagger.io/api/v3/openapi.json',
+      baseUrl: 'https://petstore3.swagger.io/api/v3'
+    });
+    console.log(`Test OpenAPI AgentPass created with ${openApiAgentpass.getEndpoints().length} endpoints`);
+  }, 30000); // Increased timeout for HTTP fetching
 
   afterAll(async () => {
     if (expressServer) {
@@ -651,6 +664,328 @@ describe('MCP Real Clients E2E Tests', () => {
       console.log('✅ Get users via Fastify Stdio successful');
 
       console.log('\n🎉 Fastify Stdio MCP SDK Client test completed successfully!');
+    }, 45000); // Longer timeout for process spawning
+  });
+
+  // OpenAPI Tests
+  describe('OpenAPI HTTP Transport with MCP SDK Client', () => {
+    let httpMcpServer: MCPServer;
+    let httpClient: Client;
+    let httpTransport: StreamableHTTPClientTransport;
+
+    afterEach(async () => {
+      if (httpClient) {
+        try {
+          await httpClient.close();
+        } catch (error) {
+          console.log('OpenAPI HTTP client close error:', error);
+        }
+      }
+      if (httpMcpServer && httpMcpServer.isRunning()) {
+        await httpMcpServer.stop();
+      }
+    });
+
+    it('should start OpenAPI HTTP MCP server and connect with MCP SDK HTTP client', async () => {
+      console.log('\n🚀 Testing OpenAPI HTTP MCP Server with MCP SDK Client...');
+      
+      // 1. Generate and start HTTP MCP server with OpenAPI
+      httpMcpServer = await openApiAgentpass.generateMCPServer({
+        name: 'openapi-http-real-test-server',
+        version: '1.0.0',
+        transport: 'http',
+        port: 0,
+        cors: true,
+        baseUrl: 'https://petstore3.swagger.io/api/v3',
+        toolNaming: (endpoint) => {
+          // Use OpenAPI operation ID if available, otherwise generate
+          if (endpoint.metadata?.operationId && typeof endpoint.metadata.operationId === 'string') {
+            return endpoint.metadata.operationId;
+          }
+          
+          const method = endpoint.method.toLowerCase();
+          const pathParts = endpoint.path.split('/').filter(p => p && !p.startsWith('{'));
+          const resource = pathParts[pathParts.length - 1] || 'resource';
+          
+          return `${method}_${resource}`;
+        }
+      });
+
+      await httpMcpServer.start();
+      expect(httpMcpServer.isRunning()).toBe(true);
+
+      const mcpAddress = httpMcpServer.getAddress?.();
+      expect(mcpAddress).toBeDefined();
+      console.log(`✅ OpenAPI HTTP MCP Server running at: ${mcpAddress}`);
+
+      // 2. Create HTTP client transport and connect
+      console.log('\n🔌 Connecting MCP SDK HTTP client to OpenAPI...');
+      const httpUrl = `${mcpAddress}/mcp`;
+      
+      httpTransport = new StreamableHTTPClientTransport(new URL(httpUrl));
+      httpClient = new Client(
+        {
+          name: "openapi-http-test-client",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      await httpClient.connect(httpTransport);
+      console.log('✅ OpenAPI HTTP MCP client connected successfully');
+
+      // 3. Test listTools with MCP SDK client
+      console.log('\n🔧 Testing listTools() via MCP SDK OpenAPI HTTP client...');
+      const toolsResult = await httpClient.listTools();
+
+      expect(toolsResult.tools).toBeDefined();
+      expect(Array.isArray(toolsResult.tools)).toBe(true);
+      expect(toolsResult.tools.length).toBe(19); // Real Petstore API has 19 endpoints
+
+      console.log(`✅ Found ${toolsResult.tools.length} MCP tools from OpenAPI:`);
+      toolsResult.tools.forEach(tool => {
+        console.log(`  - ${tool.name}: ${tool.description}`);
+      });
+
+      // Verify some key tool names match OpenAPI operationIds from real API
+      const toolNames = toolsResult.tools.map(tool => tool.name);
+      expect(toolNames).toContain('addPet');
+      expect(toolNames).toContain('updatePet');
+      expect(toolNames).toContain('findPetsByStatus');
+      expect(toolNames).toContain('getPetById');
+      expect(toolNames).toContain('deletePet');
+      expect(toolNames).toContain('placeOrder');
+      expect(toolNames).toContain('getInventory');
+      expect(toolNames).toContain('createUser');
+
+      // 4. Test callTool - Get store inventory (simple GET request)
+      console.log('\n📦 Testing callTool() getInventory via MCP SDK OpenAPI HTTP client...');
+      const inventoryResult = await httpClient.callTool({
+        name: "getInventory",
+        arguments: {}
+      });
+
+      expect(inventoryResult.content).toBeDefined();
+      expect(Array.isArray(inventoryResult.content)).toBe(true);
+      
+      // Try to parse the actual response data like we do in Express tests
+      try {
+        const inventoryData = JSON.parse((inventoryResult.content as any)[0].text);
+        console.log('✅ Inventory result:', typeof inventoryData === 'object' ? 'valid JSON response' : 'unexpected format');
+      } catch (error) {
+        console.log('✅ Inventory result received (non-JSON):', (inventoryResult.content as any[]).length > 0 ? 'success' : 'empty');
+      }
+
+      console.log('\n🎉 OpenAPI HTTP MCP SDK Client test completed successfully!');
+    }, 30000);
+  });
+
+  describe('OpenAPI SSE Transport with MCP SDK Client', () => {
+    let sseMcpServer: MCPServer;
+    let sseClient: Client;
+    let sseTransport: SSEClientTransport;
+
+    afterEach(async () => {
+      if (sseClient) {
+        try {
+          await sseClient.close();
+        } catch (error) {
+          console.log('OpenAPI SSE client close error:', error);
+        }
+      }
+      if (sseMcpServer && sseMcpServer.isRunning()) {
+        await sseMcpServer.stop();
+      }
+    });
+
+    it('should start OpenAPI SSE MCP server and connect with MCP SDK SSE client', async () => {
+      console.log('\n🚀 Testing OpenAPI SSE MCP Server with MCP SDK Client...');
+      
+      // 1. Generate and start SSE MCP server with OpenAPI
+      sseMcpServer = await openApiAgentpass.generateMCPServer({
+        name: 'openapi-sse-real-test-server',
+        version: '1.0.0',
+        transport: 'sse',
+        port: 0,
+        cors: true,
+        baseUrl: 'https://petstore3.swagger.io/api/v3',
+        toolNaming: (endpoint) => {
+          // Use OpenAPI operation ID if available, otherwise generate
+          if (endpoint.metadata?.operationId && typeof endpoint.metadata.operationId === 'string') {
+            return endpoint.metadata.operationId;
+          }
+          
+          const method = endpoint.method.toLowerCase();
+          const pathParts = endpoint.path.split('/').filter(p => p && !p.startsWith('{'));
+          const resource = pathParts[pathParts.length - 1] || 'resource';
+          
+          return `${method}_${resource}`;
+        }
+      });
+
+      await sseMcpServer.start();
+      expect(sseMcpServer.isRunning()).toBe(true);
+
+      const sseAddress = sseMcpServer.getAddress?.();
+      expect(sseAddress).toBeDefined();
+      console.log(`✅ OpenAPI SSE MCP Server running at: ${sseAddress}`);
+
+      // 2. Create SSE client transport and connect
+      console.log('\n🔌 Connecting MCP SDK SSE client to OpenAPI...');
+      const sseUrl = `${sseAddress}/sse`;
+      
+      sseTransport = new SSEClientTransport(new URL(sseUrl));
+      sseClient = new Client(
+        {
+          name: "openapi-sse-test-client",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      await sseClient.connect(sseTransport);
+      console.log('✅ OpenAPI SSE MCP client connected successfully');
+
+      // 3. Test listTools with MCP SDK SSE client
+      console.log('\n🔧 Testing listTools() via MCP SDK OpenAPI SSE client...');
+      const toolsResult = await sseClient.listTools();
+
+      expect(toolsResult.tools).toBeDefined();
+      expect(Array.isArray(toolsResult.tools)).toBe(true);
+      expect(toolsResult.tools.length).toBe(19);
+
+      console.log(`✅ Found ${toolsResult.tools.length} MCP tools via OpenAPI SSE`);
+
+      // Verify some key tool names match OpenAPI operationIds from real API
+      const toolNames = toolsResult.tools.map(tool => tool.name);
+      expect(toolNames).toContain('addPet');
+      expect(toolNames).toContain('updatePet');
+      expect(toolNames).toContain('findPetsByStatus');
+      expect(toolNames).toContain('getPetById');
+      expect(toolNames).toContain('deletePet');
+      expect(toolNames).toContain('placeOrder');
+      expect(toolNames).toContain('getInventory');
+      expect(toolNames).toContain('createUser');
+
+      // 4. Test callTool - Get store inventory (simple GET request)
+      console.log('\n📦 Testing callTool() getInventory via MCP SDK OpenAPI SSE client...');
+      const inventoryResult = await sseClient.callTool({
+        name: "getInventory",
+        arguments: {}
+      });
+
+      expect(inventoryResult.content).toBeDefined();
+      expect(Array.isArray(inventoryResult.content)).toBe(true);
+      
+      // Try to parse the actual response data like we do in Express tests
+      try {
+        const inventoryData = JSON.parse((inventoryResult.content as any)[0].text);
+        console.log('✅ Inventory result via SSE:', typeof inventoryData === 'object' ? 'valid JSON response' : 'unexpected format');
+      } catch (error) {
+        console.log('✅ Inventory result received via SSE (non-JSON):', (inventoryResult.content as any[]).length > 0 ? 'success' : 'empty');
+      }
+
+      console.log('\n🎉 OpenAPI SSE MCP SDK Client test completed successfully!');
+    }, 30000);
+  });
+
+  describe('OpenAPI Stdio Transport with MCP SDK Client', () => {
+    let stdioClient: Client;
+    let stdioTransport: StdioClientTransport;
+
+    afterEach(async () => {
+      if (stdioClient) {
+        try {
+          await stdioClient.close();
+        } catch (error) {
+          console.log('OpenAPI Stdio client close error:', error);
+        }
+      }
+    });
+
+    it('should connect to OpenAPI stdio MCP server using MCP SDK stdio client', async () => {
+      console.log('\n🚀 Testing OpenAPI Stdio MCP Server with MCP SDK Client...');
+      
+      // Create a command that runs our OpenAPI stdio server
+      const command = 'npx';
+      const args = [
+        'ts-node', 
+        '--project', 
+        'examples/tsconfig.json', 
+        'examples/openapi/server.ts',
+        'stdio'
+      ];
+
+      // 1. Create stdio client transport 
+      console.log('\n🔌 Connecting MCP SDK Stdio client to OpenAPI...');
+      stdioTransport = new StdioClientTransport({
+        command,
+        args
+      });
+
+      stdioClient = new Client(
+        {
+          name: "openapi-stdio-test-client",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      await stdioClient.connect(stdioTransport);
+      console.log('✅ OpenAPI Stdio MCP client connected successfully');
+
+      // 2. Test listTools with MCP SDK stdio client
+      console.log('\n🔧 Testing listTools() via MCP SDK OpenAPI Stdio client...');
+      const toolsResult = await stdioClient.listTools();
+
+      expect(toolsResult.tools).toBeDefined();
+      expect(Array.isArray(toolsResult.tools)).toBe(true);
+      expect(toolsResult.tools.length).toBe(19);
+
+      console.log(`✅ Found ${toolsResult.tools.length} MCP tools via OpenAPI Stdio`);
+
+      // Verify some key tool names match OpenAPI operationIds from real API
+      const toolNames = toolsResult.tools.map(tool => tool.name);
+      expect(toolNames).toContain('addPet');
+      expect(toolNames).toContain('updatePet');
+      expect(toolNames).toContain('findPetsByStatus');
+      expect(toolNames).toContain('getPetById');
+      expect(toolNames).toContain('deletePet');
+      expect(toolNames).toContain('placeOrder');
+      expect(toolNames).toContain('getInventory');
+      expect(toolNames).toContain('createUser');
+
+      // 3. Test callTool - Get store inventory (simple GET request)
+      console.log('\n📦 Testing callTool() getInventory via MCP SDK OpenAPI Stdio client...');
+      const inventoryResult = await stdioClient.callTool({
+        name: "getInventory",
+        arguments: {}
+      });
+
+      expect(inventoryResult.content).toBeDefined();
+      expect(Array.isArray(inventoryResult.content)).toBe(true);
+      
+      // Try to parse the actual response data like we do in Express tests
+      try {
+        const inventoryData = JSON.parse((inventoryResult.content as any)[0].text);
+        console.log('✅ Inventory result via Stdio:', typeof inventoryData === 'object' ? 'valid JSON response' : 'unexpected format');
+      } catch (error) {
+        console.log('✅ Inventory result received via Stdio (non-JSON):', (inventoryResult.content as any[]).length > 0 ? 'success' : 'empty');
+      }
+
+      console.log('\n🎉 OpenAPI Stdio MCP SDK Client test completed successfully!');
     }, 45000); // Longer timeout for process spawning
   });
 });

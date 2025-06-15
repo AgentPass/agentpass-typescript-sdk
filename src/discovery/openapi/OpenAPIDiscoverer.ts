@@ -9,23 +9,10 @@ import {
   ResponseDefinition,
   RequestBodyDefinition
 } from '../../core/types';
-// Note: These would be real imports in a full implementation
-// import { OpenAPIV3 } from 'openapi-types';
-// import * as SwaggerParser from 'swagger-parser';
-// import axios from 'axios';
-// Note: fs and path would be imported in a real implementation
-// import * as fs from 'fs';
-// import * as path from 'path';
-
-// Mock implementations for compilation
-const fs = {
-  existsSync: (path: string) => true,
-  readFileSync: (path: string, encoding?: string) => '',
-};
-
-const path = {
-  resolve: (filePath: string) => filePath,
-};
+import * as fs from 'fs';
+import * as path from 'path';
+import * as https from 'https';
+import * as http from 'http';
 
 // Placeholder types for compilation
 interface OpenAPIV3Document {
@@ -136,8 +123,75 @@ interface ExternalDocumentation {
   description?: string;
   url: string;
 }
-const SwaggerParser = { validate: async (spec: unknown) => spec };
-const axios = { get: async (url: string, options?: unknown) => ({ data: {} }), isAxiosError: (err: unknown) => false };
+// Simple HTTP fetch implementation
+const httpFetch = {
+  get: async (url: string, options: { headers?: Record<string, string> } = {}): Promise<{ data: any }> => {
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(url);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+      
+      const requestOptions = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port,
+        path: parsedUrl.pathname + parsedUrl.search,
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json, application/x-yaml, text/yaml',
+          'User-Agent': 'AgentPass/1.0.0',
+          ...options.headers,
+        },
+      };
+
+      const req = client.request(requestOptions, (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          try {
+            // Try to parse as JSON first
+            let parsedData;
+            try {
+              parsedData = JSON.parse(data);
+            } catch {
+              // If JSON parsing fails, return as string (could be YAML)
+              parsedData = data;
+            }
+            resolve({ data: parsedData });
+          } catch (error) {
+            reject(new Error(`Failed to parse response: ${error}`));
+          }
+        });
+      });
+
+      req.on('error', (error) => {
+        reject(new Error(`HTTP request failed: ${error.message}`));
+      });
+
+      req.setTimeout(10000, () => {
+        req.destroy();
+        reject(new Error('Request timeout'));
+      });
+
+      req.end();
+    });
+  },
+  isAxiosError: (err: unknown) => false
+};
+
+// Simple OpenAPI spec validator (just returns the spec as-is for now)
+const SwaggerParser = { 
+  validate: async (spec: unknown) => {
+    // Basic validation - check if it's an OpenAPI spec
+    if (typeof spec === 'object' && spec !== null) {
+      const specObj = spec as any;
+      if (specObj.openapi || specObj.swagger) {
+        return spec;
+      }
+    }
+    throw new Error('Invalid OpenAPI specification');
+  }
+};
 
 export class OpenAPIDiscoverer extends BaseDiscoverer {
   constructor() {
@@ -223,7 +277,7 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
         headers['Authorization'] = `Bearer ${options.apiKey}`;
       }
 
-      const response = await axios.get(url, { headers });
+      const response = await httpFetch.get(url, { headers });
       return response.data;
     } catch (error) {
       throw new DiscoveryError(`Failed to load OpenAPI spec from URL: ${url}`, { error });

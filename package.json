@@ -28,7 +28,8 @@
     "example:fastify": "npx ts-node --project examples/tsconfig.json examples/fastify/server.ts",
     "example:fastify:stdio": "npx ts-node --project examples/tsconfig.json examples/fastify/server.ts stdio",
     "example:fastify:http": "npx ts-node --project examples/tsconfig.json examples/fastify/server.ts http",
-    "example:fastify:sse": "npx ts-node --project examples/tsconfig.json examples/fastify/server.ts sse"
+    "example:fastify:sse": "npx ts-node --project examples/tsconfig.json examples/fastify/server.ts sse",
+    "example:openapi": "npx ts-node --project examples/tsconfig.json examples/openapi/server.ts"
   },
   "keywords": [
     "mcp",

@@ -23,7 +23,7 @@
      - `NestJSDiscoverer.ts` - NestJS decorator analysis and module introspection
      - `NextJSDiscoverer.ts` - Next.js API routes file system scanning
    - **Specification Discoverers**:
-     - `OpenAPIDiscoverer.ts` - Complete OpenAPI/Swagger parsing with reference resolution
+     - `OpenAPIDiscoverer.ts` - Complete OpenAPI/Swagger parsing with real HTTP fetching and reference resolution
      - `URLDiscoverer.ts` - Live endpoint crawling with intelligent pattern detection
 
 3. **MCP Generation** (`src/mcp/`)
@@ -49,7 +49,7 @@
   - **Express**: Route introspection via app._router analysis
   - **Fastify**: Advanced route discovery using inject() method probing and register() pattern support
   - **Koa**: Router middleware chain analysis
-- **OpenAPI/Swagger**: Complete spec parsing with schema validation and reference resolution
+- **OpenAPI/Swagger**: Complete spec parsing with real HTTP fetching, schema validation and reference resolution
 - **URL Crawling**: Intelligent endpoint discovery through HTTP response analysis
 - **Manual Definition**: Programmatic endpoint registration for custom scenarios
 
@@ -84,7 +84,7 @@
 | **Express.js** | ✅ Full | ✅ E2E Validated | Route introspection, middleware analysis, nested routers |
 | **Fastify** | ✅ Full | ✅ E2E Validated | Schema introspection, route tree access, performance optimized |
 | **Koa** | ✅ Implementation | ⚠️ Ready | koa-router support, middleware chain analysis |
-| **OpenAPI/Swagger** | ✅ Full | ✅ E2E Validated | Complete spec parsing, reference resolution, schema generation |
+| **OpenAPI/Swagger** | ✅ Full | ✅ E2E Validated | Real HTTP fetching, complete spec parsing, reference resolution, schema generation |
 | **NestJS** | ✅ Implementation | ⚠️ Ready | Decorator analysis, dependency injection, modular architecture |
 | **Next.js** | ✅ Implementation | ⚠️ Ready | File system scanning, API routes, dynamic routes |
 
@@ -94,14 +94,14 @@
 ```typescript
 import { AgentPass } from 'agentpass';
 
-const agentpass = new AgentPass({
+// Create AgentPass instance with auto-discovery
+const agentpass = await AgentPass.create({
   name: 'my-api-service',
   version: '1.0.0',
-  description: 'My API exposed as MCP tools'
+  description: 'My API exposed as MCP tools',
+  app: expressApp,
+  framework: 'express'
 });
-
-// Auto-discover from Express app
-await agentpass.discover({ app: expressApp, framework: 'express' });
 
 // Generate MCP server with any transport
 const mcpServer = await agentpass.generateMCPServer({
@@ -156,13 +156,15 @@ const mcpServer = await agentpass.generateMCPServer({
 **E2E Tests** (`tests/e2e/`):
 - **Express Integration**: Complete stdio/HTTP/SSE transport testing with real MCP SDK clients
 - **Fastify Integration**: Complete stdio/HTTP/SSE transport testing with real MCP SDK clients
+- **OpenAPI Integration**: Complete stdio/HTTP/SSE transport testing with real external API fetching
 - **Real MCP Communication**: Using official `@modelcontextprotocol/sdk` clients (no raw HTTP calls)
 - **Transport Validation**: 
   - stdio: `StdioClientTransport` for Claude Desktop integration
   - HTTP: `StreamableHTTPClientTransport` for web clients  
   - SSE: `SSEClientTransport` for mcp-remote connections
 - **Protocol Compliance**: Full MCP protocol handshake and session management
-- **Comprehensive Coverage**: 6 E2E tests (3 Express + 3 Fastify) covering all transports
+- **Tool Execution**: Real tool calling with response validation across all frameworks
+- **Comprehensive Coverage**: 9 E2E tests (3 Express + 3 Fastify + 3 OpenAPI) covering all transports
 
 ### E2E Test Architecture
 ```typescript
@@ -200,8 +202,8 @@ examples/
 │   └── server.ts              # Unified server with transport selection
 ├── shared/                   # Common utilities
 │   └── api-data.ts            # Shared JSON data and tool utilities
-└── integrations/             # Specification examples
-    └── openapi-petstore.ts    # OpenAPI/Swagger parsing
+└── openapi/                  # OpenAPI examples
+    └── server.ts             # OpenAPI/Swagger parsing with real HTTP fetching
 ```
 
 **Common API Features** (identical across Express and Fastify):
@@ -314,6 +316,7 @@ npm run example:fastify          # Default (SSE)
 npm run example:fastify:stdio    # Claude Desktop
 npm run example:fastify:http     # Web clients
 npm run example:fastify:sse      # mcp-remote
+npm run example:openapi          # OpenAPI/Swagger parsing
 ```
 
 ### Project Structure
@@ -350,8 +353,8 @@ examples/              # Comprehensive examples
 │   └── server.ts      # Unified server (all transports)
 ├── shared/           # Shared API implementation
 │   └── api-data.ts
-├── integrations/     # Third-party integrations
-│   └── openapi-petstore.ts
+├── openapi/          # OpenAPI examples
+│   └── server.ts
 └── tsconfig.json      # Examples TypeScript config
 
 tests/

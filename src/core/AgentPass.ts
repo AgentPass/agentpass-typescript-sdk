@@ -46,8 +46,8 @@ export class AgentPass extends EventEmitter {
   static async create(config: AgentPassConfig): Promise<AgentPass> {
     const instance = new AgentPass(config);
     
-    // Auto-discover if app and framework are provided
-    if (config.app && config.framework) {
+    // Auto-discover if framework is provided with appropriate source
+    if (config.framework && (config.app || config.openapi)) {
       await instance.discover({
         app: config.app,
         framework: config.framework,

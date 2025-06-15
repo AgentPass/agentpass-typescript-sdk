@@ -137,7 +137,6 @@ async function startMCPServer(transport: TransportType = 'sse') {
     }
 
     console.error('');
-    console.error('🔍 Debug: All HTTP requests will be logged below...');
 
     // Graceful shutdown
     const cleanup = async () => {

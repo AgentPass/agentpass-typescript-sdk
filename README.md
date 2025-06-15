@@ -13,7 +13,7 @@ AgentPass is an open-source TypeScript SDK that bridges traditional HTTP APIs wi
 ### ✨ Key Features
 
 - **🔍 Auto-Discovery**: Zero-config endpoint discovery from Express, Fastify, Koa, NestJS, Next.js
-- **📊 OpenAPI Support**: Complete OpenAPI/Swagger specification parsing and tool generation
+- **📊 OpenAPI Support**: Complete OpenAPI/Swagger specification parsing with real HTTP fetching and tool generation
 - **🔗 Multi-Transport**: stdio (Claude Desktop), HTTP (web clients), SSE (mcp-remote)
 - **🔒 Security First**: Built-in authentication, authorization, rate limiting, and middleware
 - **🧩 Plugin Architecture**: Extensible system for custom functionality and integrations
@@ -57,17 +57,13 @@ app.get('/users/:id', (req, res) => {
   res.json({ id: req.params.id, name: 'John Doe' });
 });
 
-// Create AgentPass instance
-const agentpass = new AgentPass({
+// Create AgentPass instance with auto-discovery
+const agentpass = await AgentPass.create({
   name: 'my-api-service',
   version: '1.0.0',
-  description: 'My API exposed as MCP tools'
-});
-
-// Auto-discover endpoints
-await agentpass.discover({ 
-  app, 
-  framework: 'express' 
+  description: 'My API exposed as MCP tools',
+  app,
+  framework: 'express'
 });
 
 // Generate MCP server for Claude Desktop
@@ -94,17 +90,13 @@ await app.register(async function (fastify) {
   });
 });
 
-// Create AgentPass instance
-const agentpass = new AgentPass({
+// Create AgentPass instance with auto-discovery
+const agentpass = await AgentPass.create({
   name: 'my-fastify-service',
   version: '1.0.0',
-  description: 'My Fastify API exposed as MCP tools'
-});
-
-// Auto-discover endpoints
-await agentpass.discover({ 
-  app, 
-  framework: 'fastify' 
+  description: 'My Fastify API exposed as MCP tools',
+  app,
+  framework: 'fastify'
 });
 
 // Generate MCP server for Claude Desktop
@@ -121,15 +113,12 @@ await mcpServer.start();
 ```typescript
 import { AgentPass } from 'agentpass';
 
-const agentpass = new AgentPass({
+// Create AgentPass instance with OpenAPI auto-discovery from URL
+const agentpass = await AgentPass.create({
   name: 'petstore-api',
-  version: '1.0.0'
-});
-
-// Discover from OpenAPI spec
-await agentpass.discover({
-  openapi: './openapi.json',
-  framework: 'openapi'
+  version: '1.0.0',
+  framework: 'openapi',
+  openapi: 'https://petstore3.swagger.io/api/v3/openapi.json' // Real HTTP fetching
 });
 
 // Generate web-accessible MCP server
@@ -313,42 +302,66 @@ const mcpServer = await agentpass.generateMCPServer({
 ### Express.js ✅
 
 ```typescript
-await agentpass.discover({ app: expressApp, framework: 'express' });
+const agentpass = await AgentPass.create({ 
+  name: 'my-api', 
+  version: '1.0.0',
+  app: expressApp, 
+  framework: 'express' 
+});
 ```
 
 ### Fastify ✅
 
 ```typescript
-await agentpass.discover({ app: fastifyApp, framework: 'fastify' });
+const agentpass = await AgentPass.create({ 
+  name: 'my-api', 
+  version: '1.0.0',
+  app: fastifyApp, 
+  framework: 'fastify' 
+});
 ```
 
 ### Koa ✅
 
 ```typescript
-await agentpass.discover({ app: koaApp, framework: 'koa' });
+const agentpass = await AgentPass.create({ 
+  name: 'my-api', 
+  version: '1.0.0',
+  app: koaApp, 
+  framework: 'koa' 
+});
 ```
 
 ### OpenAPI/Swagger ✅
 
 ```typescript
-await agentpass.discover({ 
-  openapi: './spec.json', // or URL or object
-  framework: 'openapi' 
+const agentpass = await AgentPass.create({ 
+  name: 'my-api', 
+  version: '1.0.0',
+  framework: 'openapi',
+  openapi: 'https://api.example.com/openapi.json' // Real HTTP fetching, file path, or object
 });
 ```
 
 ### NestJS 🚧
 
 ```typescript
-await agentpass.discover({ app: nestApp, framework: 'nestjs' });
+const agentpass = await AgentPass.create({ 
+  name: 'my-api', 
+  version: '1.0.0',
+  app: nestApp, 
+  framework: 'nestjs' 
+});
 ```
 
 ### Next.js 🚧
 
 ```typescript
-await agentpass.discover({ 
-  appDir: './pages/api', 
-  framework: 'nextjs' 
+const agentpass = await AgentPass.create({ 
+  name: 'my-api', 
+  version: '1.0.0',
+  framework: 'nextjs',
+  appDir: './pages/api'
 });
 ```
 
@@ -359,7 +372,7 @@ The project includes comprehensive examples organized by framework in the `examp
 ### Framework Examples
 - **[Express Examples](examples/express/)** - Complete Express.js implementation with stdio, HTTP, and SSE servers
 - **[Fastify Examples](examples/fastify/)** - Complete Fastify implementation with stdio, HTTP, and SSE servers  
-- **[OpenAPI Integration](examples/integrations/)** - OpenAPI/Swagger specification parsing
+- **[OpenAPI Integration](examples/openapi/)** - OpenAPI/Swagger specification parsing with real HTTP fetching
 
 ### Example Structure
 ```
@@ -376,8 +389,8 @@ examples/
 │   └── sse-server.ts           # Fastify SSE MCP server
 ├── shared/
 │   └── api-data.ts             # Shared JSON data and utilities
-└── integrations/
-    └── openapi-petstore.ts     # OpenAPI example
+└── openapi/
+    └── server.ts               # OpenAPI example
 ```
 
 ### Running Examples
@@ -396,6 +409,9 @@ npm run example:fastify          # Default (SSE transport)
 npm run example:fastify:stdio    # Claude Desktop
 npm run example:fastify:http     # Web clients
 npm run example:fastify:sse      # mcp-remote
+
+# OpenAPI examples
+npm run example:openapi          # OpenAPI/Swagger parsing
 ```
 
 ## 🧪 Testing
@@ -421,7 +437,9 @@ npm run test:coverage
 - **E2E Tests**: 
   - Express integration with stdio/HTTP/SSE transports using real MCP SDK clients
   - Fastify integration with stdio/HTTP/SSE transports using real MCP SDK clients
+  - OpenAPI integration with stdio/HTTP/SSE transports using real external API fetching
   - Real MCP client communication (no raw HTTP calls)
+  - Tool execution testing with response validation
   - Full protocol compliance testing
 - **Documentation Tests**: All README examples validated at runtime
 
