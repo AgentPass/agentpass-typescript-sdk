@@ -6,12 +6,18 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import express, { Request, Response } from 'express';
 import { Server } from 'http';
+import { createSampleAPI as createSampleAPIFastify } from '../../examples/fastify/api-implementation';
+import { FastifyInstance } from 'fastify';
 
 describe('MCP Real Clients E2E Tests', () => {
   let expressApp: express.Application;
   let expressServer: Server;
   let expressPort: number;
   let agentpass: AgentPass;
+  
+  let fastifyApp: FastifyInstance;
+  let fastifyPort: number;
+  let fastifyAgentpass: AgentPass;
 
   beforeAll(async () => {
     // Create a real Express server with test endpoints
@@ -103,6 +109,24 @@ describe('MCP Real Clients E2E Tests', () => {
     });
 
     await agentpass.discover({ app: expressApp, framework: 'express' });
+
+    // Create Fastify server and discover endpoints BEFORE starting
+    fastifyApp = await createSampleAPIFastify();
+    
+    // Create Fastify AgentPass instance and discover endpoints
+    fastifyAgentpass = new AgentPass({
+      name: 'real-clients-test-api-fastify',
+      version: '1.0.0',
+      description: 'Real MCP Clients E2E Test API (Fastify)'
+    });
+
+    await fastifyAgentpass.discover({ app: fastifyApp, framework: 'fastify' });
+
+    // Now start the Fastify server
+    await fastifyApp.listen({ port: 0, host: 'localhost' });
+    const fastifyAddress = fastifyApp.server.address();
+    fastifyPort = typeof fastifyAddress === 'object' && fastifyAddress ? fastifyAddress.port : 3001;
+    console.log(`Test Fastify server started on port ${fastifyPort}`);
   }, 15000);
 
   afterAll(async () => {
@@ -110,6 +134,9 @@ describe('MCP Real Clients E2E Tests', () => {
       await new Promise<void>((resolve) => {
         expressServer.close(() => resolve());
       });
+    }
+    if (fastifyApp) {
+      await fastifyApp.close();
     }
   });
 
@@ -319,7 +346,7 @@ describe('MCP Real Clients E2E Tests', () => {
         'ts-node', 
         '--project', 
         'examples/tsconfig.json', 
-        'examples/stdio-server.ts'
+        'examples/express/stdio-server.ts'
       ];
 
       // 1. Create stdio client transport 
@@ -366,6 +393,262 @@ describe('MCP Real Clients E2E Tests', () => {
       console.log('✅ Get users via Stdio successful');
 
       console.log('\n🎉 Stdio MCP SDK Client test completed successfully!');
+    }, 45000); // Longer timeout for process spawning
+  });
+
+  // Fastify Tests
+  describe('Fastify HTTP Transport with MCP SDK Client', () => {
+    let httpMcpServer: MCPServer;
+    let httpClient: Client;
+    let httpTransport: StreamableHTTPClientTransport;
+
+    afterEach(async () => {
+      if (httpClient) {
+        try {
+          await httpClient.close();
+        } catch (error) {
+          console.log('Fastify HTTP client close error:', error);
+        }
+      }
+      if (httpMcpServer && httpMcpServer.isRunning()) {
+        await httpMcpServer.stop();
+      }
+    });
+
+    it('should start Fastify HTTP MCP server and connect with MCP SDK HTTP client', async () => {
+      console.log('\n🚀 Testing Fastify HTTP MCP Server with MCP SDK Client...');
+      
+      // 1. Generate and start HTTP MCP server with Fastify
+      httpMcpServer = await fastifyAgentpass.generateMCPServer({
+        name: 'fastify-http-real-test-server',
+        version: '1.0.0',
+        transport: 'http',
+        port: 0,
+        cors: true,
+        baseUrl: `http://localhost:${fastifyPort}`,
+        toolNaming: (endpoint) => {
+          const method = endpoint.method.toLowerCase();
+          let pathParts = endpoint.path.split('/').filter(p => p && !p.startsWith('{'));
+          pathParts = pathParts.filter(p => p !== 'api');
+          const resource = pathParts[pathParts.length - 1] || 'endpoint';
+          
+          if (endpoint.path.includes('{')) {
+            return `${method}_${resource}_by_id`;
+          }
+          
+          return `${method}_${resource}`;
+        }
+      });
+
+      await httpMcpServer.start();
+      expect(httpMcpServer.isRunning()).toBe(true);
+
+      const mcpAddress = httpMcpServer.getAddress?.();
+      expect(mcpAddress).toBeDefined();
+      console.log(`✅ Fastify HTTP MCP Server running at: ${mcpAddress}`);
+
+      // 2. Create HTTP client transport and connect
+      console.log('\n🔌 Connecting MCP SDK HTTP client to Fastify...');
+      const httpUrl = `${mcpAddress}/mcp`;
+      
+      httpTransport = new StreamableHTTPClientTransport(new URL(httpUrl));
+      httpClient = new Client(
+        {
+          name: "fastify-http-test-client",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      await httpClient.connect(httpTransport);
+      console.log('✅ Fastify HTTP MCP client connected successfully');
+
+      // 3. Test listTools with MCP SDK client
+      console.log('\n🔧 Testing listTools() via MCP SDK Fastify HTTP client...');
+      const toolsResult = await httpClient.listTools();
+
+      expect(toolsResult.tools).toBeDefined();
+      expect(Array.isArray(toolsResult.tools)).toBe(true);
+      expect(toolsResult.tools.length).toBeGreaterThanOrEqual(4);
+
+      console.log(`✅ Found ${toolsResult.tools.length} MCP tools from Fastify:`);
+      toolsResult.tools.forEach(tool => {
+        console.log(`  - ${tool.name}: ${tool.description}`);
+      });
+
+      // 4. Test callTool - Get users
+      console.log('\n👥 Testing callTool() get_users via MCP SDK Fastify HTTP client...');
+      const usersResult = await httpClient.callTool({
+        name: "get_users",
+        arguments: {}
+      });
+
+      expect(usersResult.content).toBeDefined();
+      const usersData = JSON.parse((usersResult.content as any)[0].text);
+      console.log('✅ Fastify Users result:', usersData);
+
+      console.log('\n🎉 Fastify HTTP MCP SDK Client test completed successfully!');
+    }, 30000);
+  });
+
+  describe('Fastify SSE Transport with MCP SDK Client', () => {
+    let sseMcpServer: MCPServer;
+    let sseClient: Client;
+    let sseTransport: SSEClientTransport;
+
+    afterEach(async () => {
+      if (sseClient) {
+        try {
+          await sseClient.close();
+        } catch (error) {
+          console.log('Fastify SSE client close error:', error);
+        }
+      }
+      if (sseMcpServer && sseMcpServer.isRunning()) {
+        await sseMcpServer.stop();
+      }
+    });
+
+    it('should start Fastify SSE MCP server and connect with MCP SDK SSE client', async () => {
+      console.log('\n🚀 Testing Fastify SSE MCP Server with MCP SDK Client...');
+      
+      // 1. Generate and start SSE MCP server with Fastify
+      sseMcpServer = await fastifyAgentpass.generateMCPServer({
+        name: 'fastify-sse-real-test-server',
+        version: '1.0.0',
+        transport: 'sse',
+        port: 0,
+        cors: true,
+        baseUrl: `http://localhost:${fastifyPort}`,
+        toolNaming: (endpoint) => {
+          const method = endpoint.method.toLowerCase();
+          let pathParts = endpoint.path.split('/').filter(p => p && !p.startsWith('{'));
+          pathParts = pathParts.filter(p => p !== 'api');
+          const resource = pathParts[pathParts.length - 1] || 'endpoint';
+          
+          if (endpoint.path.includes('{')) {
+            return `${method}_${resource}_by_id`;
+          }
+          
+          return `${method}_${resource}`;
+        }
+      });
+
+      await sseMcpServer.start();
+      expect(sseMcpServer.isRunning()).toBe(true);
+
+      const sseAddress = sseMcpServer.getAddress?.();
+      expect(sseAddress).toBeDefined();
+      console.log(`✅ Fastify SSE MCP Server running at: ${sseAddress}`);
+
+      // 2. Create SSE client transport and connect
+      console.log('\n🔌 Connecting MCP SDK SSE client to Fastify...');
+      const sseUrl = `${sseAddress}/sse`;
+      
+      sseTransport = new SSEClientTransport(new URL(sseUrl));
+      sseClient = new Client(
+        {
+          name: "fastify-sse-test-client",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      await sseClient.connect(sseTransport);
+      console.log('✅ Fastify SSE MCP client connected successfully');
+
+      // 3. Test listTools with MCP SDK SSE client
+      console.log('\n🔧 Testing listTools() via MCP SDK Fastify SSE client...');
+      const toolsResult = await sseClient.listTools();
+
+      expect(toolsResult.tools).toBeDefined();
+      expect(Array.isArray(toolsResult.tools)).toBe(true);
+      expect(toolsResult.tools.length).toBeGreaterThanOrEqual(4);
+
+      console.log(`✅ Found ${toolsResult.tools.length} MCP tools via Fastify SSE`);
+
+      console.log('\n🎉 Fastify SSE MCP SDK Client test completed successfully!');
+    }, 30000);
+  });
+
+  describe('Fastify Stdio Transport with MCP SDK Client', () => {
+    let stdioClient: Client;
+    let stdioTransport: StdioClientTransport;
+
+    afterEach(async () => {
+      if (stdioClient) {
+        try {
+          await stdioClient.close();
+        } catch (error) {
+          console.log('Fastify Stdio client close error:', error);
+        }
+      }
+    });
+
+    it('should connect to Fastify stdio MCP server using MCP SDK stdio client', async () => {
+      console.log('\n🚀 Testing Fastify Stdio MCP Server with MCP SDK Client...');
+      
+      // Create a command that runs our Fastify stdio server
+      const command = 'npx';
+      const args = [
+        'ts-node', 
+        '--project', 
+        'examples/tsconfig.json', 
+        'examples/fastify/stdio-server.ts'
+      ];
+
+      // 1. Create stdio client transport 
+      console.log('\n🔌 Connecting MCP SDK Stdio client to Fastify...');
+      stdioTransport = new StdioClientTransport({
+        command,
+        args
+      });
+
+      stdioClient = new Client(
+        {
+          name: "fastify-stdio-test-client",
+          version: "1.0.0",
+        },
+        {
+          capabilities: {
+            tools: {}
+          }
+        }
+      );
+
+      await stdioClient.connect(stdioTransport);
+      console.log('✅ Fastify Stdio MCP client connected successfully');
+
+      // 2. Test listTools with MCP SDK stdio client
+      console.log('\n🔧 Testing listTools() via MCP SDK Fastify Stdio client...');
+      const toolsResult = await stdioClient.listTools();
+
+      expect(toolsResult.tools).toBeDefined();
+      expect(Array.isArray(toolsResult.tools)).toBe(true);
+      expect(toolsResult.tools.length).toBeGreaterThanOrEqual(4);
+
+      console.log(`✅ Found ${toolsResult.tools.length} MCP tools via Fastify Stdio`);
+
+      // 3. Test callTool with MCP SDK stdio client
+      console.log('\n👥 Testing callTool() get_users via MCP SDK Fastify Stdio client...');
+      const usersResult = await stdioClient.callTool({
+        name: "get_users",
+        arguments: {}
+      });
+
+      expect(usersResult.content).toBeDefined();
+      expect(Array.isArray(usersResult.content)).toBe(true);
+      console.log('✅ Get users via Fastify Stdio successful');
+
+      console.log('\n🎉 Fastify Stdio MCP SDK Client test completed successfully!');
     }, 45000); // Longer timeout for process spawning
   });
 });

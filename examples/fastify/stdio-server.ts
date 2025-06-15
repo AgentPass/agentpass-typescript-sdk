@@ -1,50 +1,53 @@
 #!/usr/bin/env ts-node
 
 /**
- * Complete MCP Server with Built-in API - stdio Transport
+ * Complete MCP Server with Built-in API - stdio Transport (Fastify)
  * 
  * This example demonstrates a complete MCP server setup with:
- * 1. Real Express API server with sample endpoints
+ * 1. Real Fastify API server with sample endpoints
  * 2. AgentPass auto-discovery of API endpoints
  * 3. MCP server generation with stdio transport for Claude Desktop
  * 
- * Usage: npx ts-node examples/complete-servers/stdio-server.ts
+ * Usage: npx ts-node examples/fastify/stdio-server.ts
  */
 
-import { AgentPass } from '../src';
-import { createSampleAPI, toolNaming, toolDescription } from './shared/api-data';
+import { AgentPass } from '../../src';
+import { createSampleAPI } from './api-implementation';
+import { toolNaming, toolDescription } from '../shared/api-data';
 
 async function startStdioMCPServer() {
-  console.error('🚀 Starting Complete MCP Server (stdio transport for Claude Desktop)...');
+  console.error('🚀 Starting Complete MCP Server (stdio transport for Claude Desktop - Fastify)...');
 
   try {
-    // Create Express API server
-    const app = createSampleAPI();
-    const apiServer = app.listen(0, () => {
-      const port = (apiServer.address() as any)?.port;
-      console.error(`✅ Express API server running on http://localhost:${port}`);
-    });
+    // Create Fastify API server
+    const app = await createSampleAPI();
 
-    // Create AgentPass instance
+    // Create AgentPass instance and discover endpoints BEFORE starting server
     const agentpass = new AgentPass({
-      name: 'company-management-api',
+      name: 'company-management-api-fastify',
       version: '1.0.0',
-      description: 'Company Management API - User, Project, and Analytics Tools'
+      description: 'Company Management API - User, Project, and Analytics Tools (Fastify)'
     });
 
-    // Discover endpoints from Express app
-    await agentpass.discover({ app, framework: 'express' });
+    // Discover endpoints from Fastify app
+    await agentpass.discover({ app, framework: 'fastify' });
     const endpoints = agentpass.getEndpoints();
+
+    // Now start the Fastify server
+    await app.listen({ port: 0, host: 'localhost' });
+    const address = app.server.address();
+    const port = typeof address === 'object' && address ? address.port : 3000;
+    console.error(`✅ Fastify API server running on http://localhost:${port}`);
     
     console.error(`✅ Discovered ${endpoints.length} API endpoints`);
 
     // Generate MCP server with stdio transport
     const mcpServer = await agentpass.generateMCPServer({
-      name: 'company-management-mcp-server',
+      name: 'company-management-mcp-server-fastify',
       version: '1.0.0',
-      description: 'MCP Server for Company Management - stdio transport for Claude Desktop',
+      description: 'MCP Server for Company Management - stdio transport for Claude Desktop (Fastify)',
       transport: 'stdio',
-      baseUrl: `http://localhost:${(apiServer.address() as any)?.port}`,
+      baseUrl: `http://localhost:${port}`,
       toolNaming,
       toolDescription
     });
@@ -67,11 +70,11 @@ async function startStdioMCPServer() {
     console.error('🎯 Claude Desktop Configuration (stdio):');
     console.error('   {');
     console.error('     "mcpServers": {');
-    console.error('       "company-api": {');
+    console.error('       "company-api-fastify": {');
     console.error('         "command": "npx",');
     console.error('         "args": [');
     console.error('           "ts-node",');
-    console.error(`           "${process.cwd()}/examples/complete-servers/stdio-server.ts"`);
+    console.error(`           "${process.cwd()}/examples/fastify/stdio-server.ts"`);
     console.error('         ]');
     console.error('       }');
     console.error('     }');
@@ -82,7 +85,7 @@ async function startStdioMCPServer() {
       console.error('\n🛑 Shutting down servers...');
       try {
         await mcpServer.stop();
-        apiServer.close();
+        await app.close();
         console.error('✅ Servers stopped gracefully');
       } catch (error) {
         console.error('❌ Error during shutdown:', (error as Error).message);

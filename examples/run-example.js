@@ -15,7 +15,7 @@ const path = require('path');
 // Parse command line arguments
 const args = process.argv.slice(2);
 const transportFlag = args.find(arg => arg.startsWith('--transport='));
-const transport = transportFlag ? transportFlag.split('=')[1] : 'sse';
+const transport = transportFlag ? transportFlag.split('=')[1] : 'stdio';
 
 // Get the example type from npm script name
 const npmScriptName = process.env.npm_lifecycle_event;
@@ -25,29 +25,29 @@ let exampleFile = '';
 switch (npmScriptName) {
   case 'example:express':
     if (transport === 'http') {
-      exampleFile = 'examples/http-server.ts';
+      exampleFile = 'examples/express/http-server.ts';
     } else if (transport === 'sse') {
-      exampleFile = 'examples/sse-server.ts';
+      exampleFile = 'examples/express/sse-server.ts';
     } else {
-      exampleFile = 'examples/stdio-server.ts'; // default to stdio
+      exampleFile = 'examples/express/stdio-server.ts'; // default to stdio
     }
     break;
   case 'example:fastify':
     if (transport === 'http') {
-      exampleFile = 'examples/http-server.ts';
+      exampleFile = 'examples/fastify/http-server.ts';
     } else if (transport === 'sse') {
-      exampleFile = 'examples/sse-server.ts';
+      exampleFile = 'examples/fastify/sse-server.ts';
     } else {
-      exampleFile = 'examples/stdio-server.ts'; // default to stdio
+      exampleFile = 'examples/fastify/stdio-server.ts'; // default to stdio
     }
     break;
   case 'example:koa':
     if (transport === 'http') {
-      exampleFile = 'examples/http-server.ts';
+      exampleFile = 'examples/koa/http-server.ts';
     } else if (transport === 'sse') {
-      exampleFile = 'examples/sse-server.ts';
+      exampleFile = 'examples/koa/sse-server.ts';
     } else {
-      exampleFile = 'examples/stdio-server.ts'; // default to stdio
+      exampleFile = 'examples/koa/stdio-server.ts'; // default to stdio
     }
     break;
   case 'example:openapi':

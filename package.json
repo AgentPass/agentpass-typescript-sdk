@@ -25,9 +25,12 @@
     "example:fastify": "node examples/run-example.js",
     "example:koa": "node examples/run-example.js",
     "example:openapi": "node examples/run-example.js",
-    "example:complete:stdio": "npx ts-node --project examples/tsconfig.json examples/stdio-server.ts",
-    "example:complete:http": "npx ts-node --project examples/tsconfig.json examples/http-server.ts",
-    "example:complete:sse": "npx ts-node --project examples/tsconfig.json examples/sse-server.ts"
+    "example:complete:express:stdio": "npx ts-node --project examples/tsconfig.json examples/express/stdio-server.ts",
+    "example:complete:express:http": "npx ts-node --project examples/tsconfig.json examples/express/http-server.ts",
+    "example:complete:express:sse": "npx ts-node --project examples/tsconfig.json examples/express/sse-server.ts",
+    "example:complete:fastify:stdio": "npx ts-node --project examples/tsconfig.json examples/fastify/stdio-server.ts",
+    "example:complete:fastify:http": "npx ts-node --project examples/tsconfig.json examples/fastify/http-server.ts",
+    "example:complete:fastify:sse": "npx ts-node --project examples/tsconfig.json examples/fastify/sse-server.ts"
   },
   "keywords": [
     "mcp",
