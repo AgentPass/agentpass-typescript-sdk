@@ -75,6 +75,8 @@ async function main() {
 
     // Generate MCP server with enhanced tool descriptions
     const mcpServer = await agentpass.generateMCPServer({
+      transport: 'stdio',
+      baseUrl: 'https://petstore3.swagger.io/api/v3',
       capabilities: {
         tools: true,
       },
@@ -108,16 +110,13 @@ async function main() {
         return description;
       },
       metadata: {
-        baseUrl: 'https://petstore3.swagger.io/api/v3',
         source: 'OpenAPI Specification',
         documentation: 'https://petstore3.swagger.io',
       },
     });
 
     // Connect to stdio transport
-    await mcpServer.connect({
-      transport: { type: 'stdio' },
-    });
+    await mcpServer.start();
 
     console.log('✅ OpenAPI Petstore MCP Server started successfully');
 

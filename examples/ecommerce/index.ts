@@ -265,9 +265,13 @@ async function setupAgentPass() {
 
   // Generate MCP server with custom tool naming
   const mcpServer = await agentpass.generateMCPServer({
+    transport: 'stdio',
+    baseUrl: 'http://localhost:3000',
     capabilities: {
       tools: true,
       resources: false,
+      prompts: false,
+      logging: false
     },
     toolNaming: (endpoint) => {
       // Custom tool naming: action_resource
@@ -296,19 +300,7 @@ async function setupAgentPass() {
       }
       
       return `${action}_${resource}`;
-    },
-    metadata: {
-      baseUrl: 'http://localhost:3000',
-      authentication: {
-        type: 'apiKey',
-        header: 'x-api-key',
-        required: true,
-      },
-      rateLimit: {
-        requests: 100,
-        window: '15m',
-      },
-    },
+    }
   });
 
   return mcpServer;
@@ -334,10 +326,8 @@ async function main() {
       console.log('  GET /admin/stats - Admin statistics');
     });
     
-    // Start MCP server on stdio
-    await mcpServer.connect({
-      transport: { type: 'stdio' },
-    });
+    // Start MCP server
+    await mcpServer.start();
     
     console.log('✅ MCP Server started successfully');
     

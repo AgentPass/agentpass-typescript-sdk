@@ -120,6 +120,8 @@ async function main() {
 
     // Generate MCP server
     const mcpServer = await agentpass.generateMCPServer({
+      transport: 'stdio',
+      baseUrl: 'http://localhost:3001',
       capabilities: {
         tools: true,
       },
@@ -130,7 +132,6 @@ async function main() {
         return `${method}_${resource}`.replace(/[^a-zA-Z0-9_]/g, '_');
       },
       metadata: {
-        baseUrl: 'http://localhost:3001',
         framework: 'koa',
       },
     });
@@ -149,9 +150,7 @@ async function main() {
     });
 
     // Start MCP server
-    await mcpServer.connect({
-      transport: { type: 'stdio' },
-    });
+    await mcpServer.start();
 
     console.log('✅ Koa MCP Server started successfully');
 

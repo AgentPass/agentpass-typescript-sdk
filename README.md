@@ -181,12 +181,12 @@ agentpass.use('authz', async (context) => {
 });
 
 // Rate limiting
-import { RateLimiter } from 'agentpass/middleware';
-const rateLimiter = new RateLimiter({
+import { RateLimit } from 'agentpass/src/middleware/rateLimit/RateLimit';
+const rateLimit = new RateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100 // requests per window
 });
-agentpass.use('pre', rateLimiter.middleware());
+agentpass.use('pre', rateLimit.middleware());
 ```
 
 ### Response Transformation
@@ -424,7 +424,7 @@ interface DiscoverOptions {
 ### E-commerce API
 
 ```typescript
-import { AgentPass } from '@agentpass/typescript-sdk';
+import { AgentPass } from 'agentpass';
 
 const agentpass = new AgentPass({
   name: 'ecommerce-api',
@@ -432,14 +432,14 @@ const agentpass = new AgentPass({
 });
 
 // Discover endpoints
-await agentpass.discover({ app: expressApp });
+await agentpass.discover({ app: expressApp, framework: 'express' });
 
 // Add business logic validation
 agentpass.use('pre', async (context) => {
   if (context.endpoint.path === '/orders' && 
       context.endpoint.method === 'POST') {
     // Validate inventory
-    await validateInventory(context.params.items);
+    await validateInventory(context.request.body?.items);
   }
 });
 
@@ -454,6 +454,8 @@ agentpass.transform((endpoint) => {
 });
 
 const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio',
+  baseUrl: 'http://localhost:3000',
   toolNaming: (endpoint) => {
     const action = endpoint.method.toLowerCase();
     const resource = endpoint.path.split('/')[1];
@@ -461,6 +463,30 @@ const mcpServer = await agentpass.generateMCPServer({
   }
 });
 ```
+
+### Complete Examples
+
+AgentPass includes complete working examples:
+
+```bash
+# Express.js basic example
+npm run example:express
+
+# E-commerce example with authentication and rate limiting
+npm run example:ecommerce
+
+# Complete MCP server with built-in API (stdio transport for Claude Desktop)
+node complete-mcp-server.mjs
+
+# Complete MCP server with HTTP transport (for web clients)
+node complete-mcp-server-http.mjs
+```
+
+The complete examples demonstrate:
+- **Real API Server**: Working Express server with multiple endpoints
+- **Auto-Discovery**: Automatic endpoint detection and conversion
+- **MCP Integration**: Ready-to-use MCP server with tools
+- **Transport Options**: Both stdio (Claude Desktop) and HTTP (web clients)
 
 ## 🧪 Testing
 
@@ -497,14 +523,28 @@ npm run lint
 
 ## 🚀 Deployment
 
-### As an MCP Server
+### Complete MCP Server Examples
+
+For production use, start with our complete examples:
+
+```bash
+# For Claude Desktop (stdio transport)
+node complete-mcp-server.mjs
+
+# For web clients (HTTP transport)
+node complete-mcp-server-http.mjs
+```
+
+### Custom MCP Server
+
+Build your own from the examples:
 
 ```bash
 # Build the project
 npm run build
 
-# Start MCP server
-node dist/examples/ecommerce/index.js
+# Run your custom server
+npx ts-node examples/express/basic.ts
 ```
 
 ### Integration with Claude Desktop
@@ -514,15 +554,20 @@ Add to your Claude Desktop MCP configuration:
 ```json
 {
   "mcpServers": {
-    "agentpass-api": {
+    "company-api": {
       "command": "node",
-      "args": ["/path/to/your/agentpass-server.js"],
-      "env": {
-        "API_KEY": "your-api-key"
-      }
+      "args": ["/path/to/complete-mcp-server.mjs"]
     }
   }
 }
+```
+
+For the HTTP transport version, configure your web client to connect to the MCP endpoint:
+```
+POST http://localhost:PORT/mcp
+Content-Type: application/json
+
+{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
 ```
 
 ## 🤝 Contributing

@@ -273,6 +273,8 @@ async function main() {
 
     // Generate MCP server with enhanced descriptions from schemas
     const mcpServer = await agentpass.generateMCPServer({
+      transport: 'stdio',
+      baseUrl: 'http://localhost:3002',
       capabilities: {
         tools: true,
       },
@@ -305,7 +307,6 @@ async function main() {
         return description;
       },
       metadata: {
-        baseUrl: 'http://localhost:3002',
         framework: 'fastify',
         hasSchemas: true,
       },
@@ -324,9 +325,7 @@ async function main() {
     console.log('  DELETE /users/:id - Delete user');
 
     // Start MCP server
-    await mcpServer.connect({
-      transport: { type: 'stdio' },
-    });
+    await mcpServer.start();
 
     console.log('✅ Fastify MCP Server started successfully');
 

@@ -131,19 +131,10 @@ async function createMCPServer() {
   // 4. Generate MCP server with custom configuration
   console.log('\n🚀 Generating MCP server...');
   const mcpServer = await agentpass.generateMCPServer({
-    name: 'example-api-mcp-server',
-    version: '1.0.0',
-    description: 'Example API endpoints exposed as MCP tools',
     transport: 'stdio', // Use 'http' for HTTP transport
-    // port: 3001, // Only needed for HTTP transport
-    // host: 'localhost', // Only needed for HTTP transport
-    // cors: true, // Only needed for HTTP transport
     baseUrl: 'http://localhost:3000', // Base URL where your actual API runs
     capabilities: {
       tools: true,
-      resources: false,
-      prompts: false,
-      logging: false
     },
     // Custom tool naming function
     toolNaming: (endpoint) => {
@@ -175,12 +166,7 @@ async function createMCPServer() {
     }
   });
 
-  console.log(`✅ MCP Server created:
-  - Name: ${mcpServer.info.name}
-  - Version: ${mcpServer.info.version}
-  - Description: ${mcpServer.info.description}
-  - Transport: ${mcpServer.transport.type}
-  - Tools capability: ${mcpServer.capabilities.tools}`);
+  console.log(`✅ MCP Server created with transport: ${mcpServer.transport.type}`);
 
   return { mcpServer, app };
 }
