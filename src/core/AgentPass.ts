@@ -41,6 +41,25 @@ export class AgentPass extends EventEmitter {
   }
 
   /**
+   * Create AgentPass instance with automatic discovery
+   */
+  static async create(config: AgentPassConfig): Promise<AgentPass> {
+    const instance = new AgentPass(config);
+    
+    // Auto-discover if app and framework are provided
+    if (config.app && config.framework) {
+      await instance.discover({
+        app: config.app,
+        framework: config.framework,
+        openapi: config.openapi,
+        baseUrl: config.baseUrl
+      });
+    }
+    
+    return instance;
+  }
+
+  /**
    * Initialize default discoverers for supported frameworks
    */
   private initializeDefaultDiscoverers(): void {

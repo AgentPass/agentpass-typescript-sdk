@@ -148,6 +148,7 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     return !!(
       options.openapi ||
       options.strategy === 'openapi' ||
+      options.framework === 'openapi' ||
       (options.url && (
         options.url.includes('swagger') ||
         options.url.includes('openapi') ||

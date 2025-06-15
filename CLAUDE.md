@@ -194,14 +194,10 @@ const result = await httpClient.callTool({ name: "get_users", arguments: {} });
 examples/
 ├── express/                  # Express.js implementations
 │   ├── api-implementation.ts    # Express-specific API server
-│   ├── stdio-server.ts         # stdio transport for Claude Desktop
-│   ├── http-server.ts          # HTTP transport for web clients
-│   └── sse-server.ts           # SSE transport for mcp-remote
+│   └── server.ts              # Unified server with transport selection
 ├── fastify/                  # Fastify implementations
 │   ├── api-implementation.ts    # Fastify-specific API server
-│   ├── stdio-server.ts         # stdio transport for Claude Desktop
-│   ├── http-server.ts          # HTTP transport for web clients
-│   └── sse-server.ts           # SSE transport for mcp-remote
+│   └── server.ts              # Unified server with transport selection
 ├── shared/                   # Common utilities
 │   └── api-data.ts            # Shared JSON data and tool utilities
 └── integrations/             # Specification examples
@@ -218,33 +214,30 @@ examples/
 
 ### Express Examples (`examples/express/`)
 
-#### stdio Transport (`examples/express/stdio-server.ts`)
+#### stdio Transport (`examples/express/server.ts`)
 **Purpose**: Claude Desktop integration via stdin/stdout
 ```bash
-npm run example:express -- --transport=stdio
-# OR: npm run example:complete:express:stdio
+npm run example:express:stdio
 ```
 - **Real Express API**: Complete REST API with business logic
 - **Auto-Discovery**: Discovers all Express routes automatically
 - **MCP Generation**: Converts to 6 MCP tools with business-friendly names
 - **Claude Desktop Ready**: Direct integration via claude_desktop_config.json
 
-#### HTTP Transport (`examples/express/http-server.ts`) 
+#### HTTP Transport (`examples/express/server.ts`)
 **Purpose**: Web clients and direct HTTP access
 ```bash
-npm run example:express -- --transport=http
-# OR: npm run example:complete:express:http
+npm run example:express:http
 ```
 - **StreamableHTTP**: Uses official MCP SDK StreamableHTTPServerTransport
 - **Full Protocol**: Complete MCP initialization handshake
 - **CORS Enabled**: Browser-compatible with proper CORS headers
 - **MCP SDK Usage**: Shows proper client connection code (no curl)
 
-#### SSE Transport (`examples/express/sse-server.ts`)
+#### SSE Transport (`examples/express/server.ts`)
 **Purpose**: mcp-remote + Claude Desktop integration
 ```bash
-npm run example:express -- --transport=sse
-# OR: npm run example:complete:express:sse
+npm run example:express:sse
 ```
 - **SSE Transport**: Server-Sent Events with HTTP POST for bidirectional communication
 - **mcp-remote Compatible**: Works with mcp-remote package for Claude Desktop bridge
@@ -252,33 +245,30 @@ npm run example:express -- --transport=sse
 
 ### Fastify Examples (`examples/fastify/`)
 
-#### stdio Transport (`examples/fastify/stdio-server.ts`)
+#### stdio Transport (`examples/fastify/server.ts`)
 **Purpose**: Claude Desktop integration via stdin/stdout
 ```bash
-npm run example:fastify -- --transport=stdio
-# OR: npm run example:complete:fastify:stdio
+npm run example:fastify:stdio
 ```
 - **Real Fastify API**: Complete REST API with async/await patterns
 - **Plugin Architecture**: Uses Fastify's register() pattern for route organization
 - **Auto-Discovery**: Advanced route discovery using inject() method
 - **Identical Functionality**: Same 6 MCP tools as Express version
 
-#### HTTP Transport (`examples/fastify/http-server.ts`)
+#### HTTP Transport (`examples/fastify/server.ts`)
 **Purpose**: Web clients and direct HTTP access
 ```bash
-npm run example:fastify -- --transport=http
-# OR: npm run example:complete:fastify:http
+npm run example:fastify:http
 ```
 - **StreamableHTTP**: Uses official MCP SDK StreamableHTTPServerTransport
 - **Full Protocol**: Complete MCP initialization handshake
 - **CORS Enabled**: Browser-compatible with proper CORS headers
 - **MCP SDK Usage**: Shows proper client connection code (no curl)
 
-#### SSE Transport (`examples/fastify/sse-server.ts`)
+#### SSE Transport (`examples/fastify/server.ts`)
 **Purpose**: mcp-remote + Claude Desktop integration
 ```bash
-npm run example:fastify -- --transport=sse
-# OR: npm run example:complete:fastify:sse
+npm run example:fastify:sse
 ```
 - **SSE Transport**: Server-Sent Events with HTTP POST for bidirectional communication
 - **mcp-remote Compatible**: Works with mcp-remote package for Claude Desktop bridge
@@ -316,17 +306,14 @@ npm run lint            # ESLint checking
 npm run lint:fix        # ESLint with auto-fix
 
 # Example Execution with Transport Selection
-npm run example:express -- --transport=stdio  # Default
-npm run example:express -- --transport=http   # Web clients
-npm run example:express -- --transport=sse    # mcp-remote
-npm run example:fastify -- --transport=http
-npm run example:koa -- --transport=sse
-npm run example:openapi
-
-# Complete MCP Servers
-npm run example:complete:stdio    # Claude Desktop
-npm run example:complete:http     # Web clients  
-npm run example:complete:sse      # mcp-remote
+npm run example:express          # Default (SSE)
+npm run example:express:stdio    # Claude Desktop
+npm run example:express:http     # Web clients
+npm run example:express:sse      # mcp-remote
+npm run example:fastify          # Default (SSE)
+npm run example:fastify:stdio    # Claude Desktop
+npm run example:fastify:http     # Web clients
+npm run example:fastify:sse      # mcp-remote
 ```
 
 ### Project Structure
@@ -357,14 +344,14 @@ src/
 └── index.ts           # Main exports
 
 examples/              # Comprehensive examples
-├── stdio-server.ts    # Claude Desktop (stdio)
-├── http-server.ts     # Web clients (HTTP)
-├── sse-server.ts      # mcp-remote (SSE)
+├── express/           # Express framework examples
+│   └── server.ts      # Unified server (all transports)
+├── fastify/           # Fastify framework examples
+│   └── server.ts      # Unified server (all transports)
 ├── shared/           # Shared API implementation
 │   └── api-data.ts
 ├── integrations/     # Third-party integrations
 │   └── openapi-petstore.ts
-├── run-example.js    # Transport selection runner
 └── tsconfig.json      # Examples TypeScript config
 
 tests/

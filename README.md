@@ -386,28 +386,16 @@ All framework examples support transport selection:
 
 ```bash
 # Express examples with different transports
-npm run example:express -- --transport=stdio  # Default (Claude Desktop)
-npm run example:express -- --transport=http   # Web clients
-npm run example:express -- --transport=sse    # mcp-remote
+npm run example:express          # Default (SSE transport)
+npm run example:express:stdio    # Claude Desktop
+npm run example:express:http     # Web clients
+npm run example:express:sse      # mcp-remote
 
 # Fastify examples with different transports
-npm run example:fastify -- --transport=stdio  # Default (Claude Desktop)
-npm run example:fastify -- --transport=http   # Web clients
-npm run example:fastify -- --transport=sse    # mcp-remote
-
-# Koa examples (when available)
-npm run example:koa -- --transport=stdio
-
-# OpenAPI example
-npm run example:openapi
-
-# Direct server access (if you prefer explicit commands)
-npm run example:complete:express:stdio
-npm run example:complete:express:http  
-npm run example:complete:express:sse
-npm run example:complete:fastify:stdio
-npm run example:complete:fastify:http  
-npm run example:complete:fastify:sse
+npm run example:fastify          # Default (SSE transport)
+npm run example:fastify:stdio    # Claude Desktop
+npm run example:fastify:http     # Web clients
+npm run example:fastify:sse      # mcp-remote
 ```
 
 ## 🧪 Testing

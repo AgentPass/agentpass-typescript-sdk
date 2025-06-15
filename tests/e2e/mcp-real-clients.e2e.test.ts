@@ -101,26 +101,26 @@ describe('MCP Real Clients E2E Tests', () => {
       });
     });
 
-    // Create AgentPass instance and discover endpoints
-    agentpass = new AgentPass({
+    // Create AgentPass instance with auto-discovery
+    agentpass = await AgentPass.create({
       name: 'real-clients-test-api',
       version: '1.0.0',
-      description: 'Real MCP Clients E2E Test API'
+      description: 'Real MCP Clients E2E Test API',
+      app: expressApp,
+      framework: 'express'
     });
-
-    await agentpass.discover({ app: expressApp, framework: 'express' });
 
     // Create Fastify server and discover endpoints BEFORE starting
     fastifyApp = await createSampleAPIFastify();
     
-    // Create Fastify AgentPass instance and discover endpoints
-    fastifyAgentpass = new AgentPass({
+    // Create Fastify AgentPass instance with auto-discovery
+    fastifyAgentpass = await AgentPass.create({
       name: 'real-clients-test-api-fastify',
       version: '1.0.0',
-      description: 'Real MCP Clients E2E Test API (Fastify)'
+      description: 'Real MCP Clients E2E Test API (Fastify)',
+      app: fastifyApp,
+      framework: 'fastify'
     });
-
-    await fastifyAgentpass.discover({ app: fastifyApp, framework: 'fastify' });
 
     // Now start the Fastify server
     await fastifyApp.listen({ port: 0, host: 'localhost' });
@@ -346,7 +346,8 @@ describe('MCP Real Clients E2E Tests', () => {
         'ts-node', 
         '--project', 
         'examples/tsconfig.json', 
-        'examples/express/stdio-server.ts'
+        'examples/express/server.ts',
+        'stdio'
       ];
 
       // 1. Create stdio client transport 
@@ -602,7 +603,8 @@ describe('MCP Real Clients E2E Tests', () => {
         'ts-node', 
         '--project', 
         'examples/tsconfig.json', 
-        'examples/fastify/stdio-server.ts'
+        'examples/fastify/server.ts',
+        'stdio'
       ];
 
       // 1. Create stdio client transport 

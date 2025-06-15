@@ -7,6 +7,12 @@ export interface AgentPassConfig {
   version: string;
   description?: string;
   metadata?: Record<string, unknown>;
+  // Framework integration
+  app?: any;
+  framework?: 'express' | 'fastify' | 'koa' | 'nestjs' | 'nextjs' | 'openapi';
+  // OpenAPI specific
+  openapi?: string | Record<string, unknown>;
+  baseUrl?: string;
 }
 
 // HTTP Methods
@@ -109,7 +115,7 @@ export interface CacheConfig {
 export interface DiscoverOptions {
   // Framework discovery
   app?: unknown;
-  framework?: 'express' | 'fastify' | 'koa' | 'nestjs' | 'nextjs';
+  framework?: 'express' | 'fastify' | 'koa' | 'nestjs' | 'nextjs' | 'openapi';
   
   // URL discovery
   url?: string;
@@ -121,6 +127,7 @@ export interface DiscoverOptions {
   
   // OpenAPI specific
   openapi?: string | Record<string, unknown>;
+  baseUrl?: string;
   
   // Crawling options
   crawl?: CrawlOptions;

@@ -4,17 +4,15 @@ import { AgentPass } from '../../src';
 async function main() {
   console.log('🚀 Starting OpenAPI Petstore Example...');
 
-  const agentpass = new AgentPass({
-    name: 'petstore-api',
-    version: '1.0.0',
-    description: 'Petstore API from OpenAPI specification',
-  });
-
   try {
-    // Discover from OpenAPI spec URL
-    await agentpass.discover({
+    // Create AgentPass instance with auto-discovery from OpenAPI spec
+    const agentpass = await AgentPass.create({
+      name: 'petstore-api',
+      version: '1.0.0',
+      description: 'Petstore API from OpenAPI specification',
+      framework: 'openapi',
       openapi: 'https://petstore3.swagger.io/api/v3/openapi.json',
-      strategy: 'openapi',
+      baseUrl: 'https://petstore3.swagger.io/api/v3'
     });
 
     console.log(`📊 Discovered ${agentpass.getEndpoints().length} endpoints from OpenAPI spec:`);
@@ -82,7 +80,7 @@ async function main() {
       },
       toolNaming: (endpoint) => {
         // Use OpenAPI operation ID if available, otherwise generate
-        if (endpoint.metadata?.operationId) {
+        if (endpoint.metadata?.operationId && typeof endpoint.metadata.operationId === 'string') {
           return endpoint.metadata.operationId;
         }
         
