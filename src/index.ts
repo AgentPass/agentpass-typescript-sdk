@@ -12,7 +12,6 @@ export { KoaDiscoverer } from './discovery/koa/KoaDiscoverer';
 export { NestJSDiscoverer } from './discovery/nestjs/NestJSDiscoverer';
 export { NextJSDiscoverer } from './discovery/nextjs/NextJSDiscoverer';
 export { OpenAPIDiscoverer } from './discovery/openapi/OpenAPIDiscoverer';
-export { URLDiscoverer } from './discovery/url/URLDiscoverer';
 
 // MCP exports
 export { MCPGenerator } from './mcp/MCPGenerator';

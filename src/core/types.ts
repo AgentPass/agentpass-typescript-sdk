@@ -1,6 +1,3 @@
-// Note: OpenAPI types would be imported from 'openapi-types' package
-// import { OpenAPIV3 } from 'openapi-types';
-
 // Core AgentPass Configuration
 export interface AgentPassConfig {
   name: string;
@@ -15,10 +12,8 @@ export interface AgentPassConfig {
   baseUrl?: string;
 }
 
-// HTTP Methods
 export type HTTPMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
-// Parameter Definition
 export interface ParameterDefinition {
   name: string;
   type: 'string' | 'number' | 'boolean' | 'object' | 'array';
@@ -29,7 +24,6 @@ export interface ParameterDefinition {
   example?: unknown;
 }
 
-// JSON Schema
 export interface JSONSchema {
   type?: string;
   properties?: Record<string, JSONSchema>;
@@ -46,7 +40,6 @@ export interface JSONSchema {
   pattern?: string;
 }
 
-// Response Definition
 export interface ResponseDefinition {
   [statusCode: string]: {
     description?: string;
@@ -59,7 +52,6 @@ export interface ResponseDefinition {
   };
 }
 
-// Request Body Definition
 export interface RequestBodyDefinition {
   description?: string;
   required?: boolean;
@@ -71,7 +63,6 @@ export interface RequestBodyDefinition {
   };
 }
 
-// Endpoint Definition
 export interface EndpointDefinition {
   id: string;
   path: string;
@@ -89,12 +80,10 @@ export interface EndpointDefinition {
   middleware?: string[];
 }
 
-// Security Requirements
 export interface SecurityRequirement {
   [name: string]: string[];
 }
 
-// Rate Limiting Configuration
 export interface RateLimitConfig {
   requests: number;
   window: string; // e.g., '1h', '15m', '60s'

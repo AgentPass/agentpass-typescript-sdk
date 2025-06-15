@@ -84,9 +84,6 @@ export class FastifyDiscoverer extends BaseDiscoverer {
     }
   }
 
-  /**
-   * Check if the given object is a Fastify app
-   */
   private isFastifyApp(app: unknown): app is FastifyInstance {
     const fastifyApp = app as FastifyInstance;
     return (
@@ -100,23 +97,17 @@ export class FastifyDiscoverer extends BaseDiscoverer {
     );
   }
 
-  /**
-   * Extract routes from Fastify app
-   */
   private async extractRoutes(app: any): Promise<FastifyRoute[]> {
     const routes: FastifyRoute[] = [];
     
     try {
-      // Try multiple approaches to get routes
       
-      // 1. Try using onRoute hook to collect routes retroactively
       if (routes.length === 0) {
         this.log('info', 'Trying to access routes via onRoute hook simulation');
         const collectedRoutes = await this.collectRoutesViaHook(app);
         routes.push(...collectedRoutes);
       }
       
-      // 2. Try using routing() method to access route tree
       if (routes.length === 0 && app.routing && typeof app.routing === 'function') {
         this.log('info', 'Trying to access routes via routing()');
         try {
@@ -133,14 +124,12 @@ export class FastifyDiscoverer extends BaseDiscoverer {
         }
       }
       
-      // 3. Use Fastify's built-in route printing functionality
       if (routes.length === 0 && app.printRoutes) {
         this.log('info', 'Trying to get routes from printRoutes');
         const routesList = this.getRoutesFromPrintRoutes(app);
         routes.push(...routesList);
       } 
       
-      // 4. Try to access internal route storage
       if (routes.length === 0 && app.hasRoute) {
         this.log('info', 'Trying to get routes from internal storage');
         const routesList = this.getRoutesFromInternalStorage(app);
@@ -164,10 +153,7 @@ export class FastifyDiscoverer extends BaseDiscoverer {
     const routes: FastifyRoute[] = [];
     
     try {
-      // This won't work for existing routes, but let's see if we can at least 
-      // trigger route registration or access existing route information
       
-      // Check if there's a way to iterate through existing routes
       if (app._routeMap || app.routes || app._routes) {
         const routeSource = app._routeMap || app.routes || app._routes;
         this.log('info', `Found route source: ${typeof routeSource}`);
@@ -175,8 +161,7 @@ export class FastifyDiscoverer extends BaseDiscoverer {
         if (Array.isArray(routeSource)) {
           routes.push(...routeSource);
         } else if (routeSource && typeof routeSource === 'object') {
-          // Try to extract routes from object
-          for (const [key, value] of Object.entries(routeSource)) {
+            for (const [key, value] of Object.entries(routeSource)) {
             if (this.isRouteDefinition(value)) {
               routes.push(value as FastifyRoute);
             }
@@ -184,12 +169,10 @@ export class FastifyDiscoverer extends BaseDiscoverer {
         }
       }
       
-      // Try to use inject to discover routes by testing common patterns
       if (routes.length === 0 && app.inject) {
         this.log('info', 'Trying to discover routes via inject method');
         const discoveredRoutes = new Set<string>();
         
-        // Test common base paths, starting with /api paths from our test data
         const basePaths = ['/api/users', '/api/projects', '/api/departments', '/api/analytics/overview', '/users', '/api', '/health', '/ping', '/', '/admin', '/admin/stats', '/admin/users', '/echo', '/test', '/data'];
         const parameterizedPaths = ['/api/users/123', '/users/123', '/api/projects/456'];
         const testMethods = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
@@ -202,8 +185,7 @@ export class FastifyDiscoverer extends BaseDiscoverer {
                 url: basePath
               });
               
-              // If we get a response that's not 404, there's probably a route there
-              if (response.statusCode !== 404) {
+                  if (response.statusCode !== 404) {
                 const routeKey = `${method} ${basePath}`;
                 if (!discoveredRoutes.has(routeKey)) {
                   this.log('info', `Found working route: ${method} ${basePath} (status: ${response.statusCode})`);
@@ -216,12 +198,10 @@ export class FastifyDiscoverer extends BaseDiscoverer {
                 }
               }
             } catch (e) {
-              // Route doesn't exist or other error, continue
-            }
+              }
           }
         }
         
-        // Test specific parameterized paths we know exist
         for (const method of testMethods) {
           for (const testPath of parameterizedPaths) {
             try {
@@ -231,8 +211,7 @@ export class FastifyDiscoverer extends BaseDiscoverer {
               });
               
               if (response.statusCode !== 404) {
-                // Convert test path back to parameter format
-                let paramPath = testPath;
+                    let paramPath = testPath;
                 if (testPath.includes('/123')) {
                   paramPath = testPath.replace('/123', '/:id');
                 }
@@ -252,16 +231,13 @@ export class FastifyDiscoverer extends BaseDiscoverer {
                 }
               }
             } catch (e) {
-              // Route doesn't exist or other error, continue
-            }
+              }
           }
         }
 
-        // Test parameterized versions of discovered base paths
         for (const method of testMethods) {
           for (const basePath of basePaths) {
             if (basePath !== '/' && !basePath.includes('analytics')) {
-              // Test simple parameterized route
               const paramPath = `${basePath}/:id`;
               const testParamPath = `${basePath}/test123`;
               
@@ -284,17 +260,14 @@ export class FastifyDiscoverer extends BaseDiscoverer {
                   }
                 }
               } catch (e) {
-                // Route doesn't exist or other error, continue
-              }
+                  }
               
-              // Test nested parameterized routes
               const nestedTests = [
                 { paramPath: `${basePath}/:userId/posts/:postId`, testPath: `${basePath}/user123/posts/post456` },
                 { paramPath: `${basePath}/:id/comments/:commentId`, testPath: `${basePath}/user123/comments/comment789` },
                 { paramPath: `${basePath}/:id/items/:itemId`, testPath: `${basePath}/user123/items/item999` }
               ];
               
-              // Also test single-level parameterized routes for this base path
               if (basePath !== '/' && !basePath.includes(':')) {
                 const singleParamTests = [
                   { paramPath: `${basePath}/:message`, testPath: `${basePath}/test123` },
@@ -324,8 +297,7 @@ export class FastifyDiscoverer extends BaseDiscoverer {
                     }
                   }
                 } catch (e) {
-                  // Route doesn't exist or other error, continue
-                }
+                      }
               }
             }
           }
@@ -579,9 +551,6 @@ export class FastifyDiscoverer extends BaseDiscoverer {
     );
   }
 
-  /**
-   * Convert Fastify routes to endpoint definitions
-   */
   private convertRoutesToEndpoints(routes: FastifyRoute[]): EndpointDefinition[] {
     const endpoints: EndpointDefinition[] = [];
     
@@ -601,9 +570,6 @@ export class FastifyDiscoverer extends BaseDiscoverer {
     return endpoints;
   }
 
-  /**
-   * Convert a single Fastify route to an endpoint definition
-   */
   private convertRouteToEndpoint(route: FastifyRoute, method: string): EndpointDefinition {
     const normalizedPath = this.normalizePath(route.url);
     const openAPIPath = this.convertToOpenAPIPath(normalizedPath);

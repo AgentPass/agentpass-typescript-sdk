@@ -69,9 +69,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     }
   }
 
-  /**
-   * Check if the given object is an Express app
-   */
   private isExpressApp(app: unknown): app is ExpressApplication {
     const expressApp = app as ExpressApplication;
     return (
@@ -85,19 +82,13 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     );
   }
 
-  /**
-   * Extract routes from Express app
-   */
   private extractRoutes(app: ExpressApplication): ExpressRoute[] {
     const routes: ExpressRoute[] = [];
     
-    // Force Express to create router if it doesn't exist
     if (!app._router) {
-      // Call a method that would create the router
       try {
         (app as any).lazyrouter?.();
       } catch (e) {
-        // Ignore errors
       }
     }
     
@@ -119,11 +110,9 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     for (const layer of stack) {
       this.log('debug', `Processing layer: ${layer.name}, hasRoute: ${!!layer.route}, hasHandle: ${!!layer.handle}, handleType: ${typeof layer.handle}`);
       if (layer.route) {
-        // Direct route
         const route = layer.route;
         const fullPath = this.combinePaths(basePath, route.path);
         
-        // Extract HTTP methods
         const methods = Object.keys(route.methods || {}).filter(method => 
           route.methods[method] && method !== '_all'
         );
@@ -137,7 +126,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
           });
         }
       } else if ((layer.name === 'router' || layer.name === 'app') && layer.handle && 'stack' in layer.handle && Array.isArray(layer.handle.stack)) {
-        // Nested router
         const nestedPath = this.extractPathFromRegex(layer.regexp);
         const fullNestedPath = this.combinePaths(basePath, nestedPath);
         
@@ -146,7 +134,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
         this.log('debug', `Nested router has ${router.stack.length} routes`);
         this.extractRoutesFromStack(router.stack, fullNestedPath, routes);
       } else if (layer.name === 'app' && layer.handle && '_router' in layer.handle) {
-        // Sub-application
         const subPath = this.extractPathFromRegex(layer.regexp);
         const fullSubPath = this.combinePaths(basePath, subPath);
         
@@ -162,9 +149,7 @@ export class ExpressDiscoverer extends BaseDiscoverer {
   private extractPathFromRegex(regexp: RegExp): string {
     const regexpStr = regexp.toString();
     
-    // Handle common Express route patterns
     if (regexpStr.includes('^\\/')) {
-      // Extract path from regex like /^\/api(?:\/(?=$))?$/i
       const match = regexpStr.match(/\^\\?\/(.*?)\(?[\\\$\)]/);
       if (match && match[1]) {
         const path = match[1]
@@ -194,9 +179,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     return base + '/' + sub;
   }
 
-  /**
-   * Convert Express routes to endpoint definitions
-   */
   private convertRoutesToEndpoints(routes: ExpressRoute[]): EndpointDefinition[] {
     const endpoints: EndpointDefinition[] = [];
     
@@ -212,9 +194,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     return endpoints;
   }
 
-  /**
-   * Convert a single Express route to an endpoint definition
-   */
   private convertRouteToEndpoint(route: ExpressRoute): EndpointDefinition {
     const normalizedPath = this.normalizePath(route.path);
     const openAPIPath = this.convertToOpenAPIPath(normalizedPath);
@@ -326,9 +305,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     return result;
   }
 
-  /**
-   * Analyze middleware in route stack
-   */
   private analyzeMiddleware(stack: any[]): Array<{ name: string; type: string }> {
     const middleware: Array<{ name: string; type: string }> = [];
     
@@ -377,9 +353,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     return 'middleware';
   }
 
-  /**
-   * Extract query parameters from handler code
-   */
   private extractQueryParamsFromHandler(
     handlerStr: string,
     queryParams: Array<{ name: string; type: string; required?: boolean; description?: string }>
@@ -400,9 +373,6 @@ export class ExpressDiscoverer extends BaseDiscoverer {
     }
   }
 
-  /**
-   * Extract tags from handler code or comments
-   */
   private extractTagsFromHandler(handlerStr: string, tags: string[]): void {
     // Look for @tag comments
     const tagMatches = handlerStr.match(/@tag\s+(\w+)/g);

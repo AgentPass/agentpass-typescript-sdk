@@ -1,5 +1,4 @@
 import { DiscoverOptions, EndpointDefinition, DiscoveryError } from '../../core/types';
-// Mock uuid for compilation
 const uuidv4 = () => 'mock-uuid-' + Math.random().toString(36).substr(2, 9);
 
 export abstract class BaseDiscoverer {
@@ -11,19 +10,10 @@ export abstract class BaseDiscoverer {
     this.version = version;
   }
 
-  /**
-   * Discover endpoints from the given options
-   */
   abstract discover(options: DiscoverOptions): Promise<EndpointDefinition[]>;
 
-  /**
-   * Check if this discoverer supports the given options
-   */
   abstract supports(options: DiscoverOptions): boolean;
 
-  /**
-   * Get discoverer information
-   */
   getInfo(): { name: string; version: string } {
     return {
       name: this.name,
@@ -31,18 +21,12 @@ export abstract class BaseDiscoverer {
     };
   }
 
-  /**
-   * Validate discovery options
-   */
   protected validateOptions(options: DiscoverOptions): void {
     if (!options) {
       throw new DiscoveryError('Discovery options are required');
     }
   }
 
-  /**
-   * Generate a unique endpoint ID
-   */
   protected generateEndpointId(method: string, path: string): string {
     const normalized = `${method.toUpperCase()}_${path.replace(/[^a-zA-Z0-9]/g, '_')}`;
     return `${normalized}_${uuidv4().substring(0, 8)}`;
@@ -67,9 +51,6 @@ export abstract class BaseDiscoverer {
     return path;
   }
 
-  /**
-   * Extract parameters from a path pattern
-   */
   protected extractPathParameters(path: string): string[] {
     const paramRegex = /:([a-zA-Z_][a-zA-Z0-9_]*)/g;
     const params: string[] = [];
@@ -84,16 +65,10 @@ export abstract class BaseDiscoverer {
     return params;
   }
 
-  /**
-   * Convert Express-style path to OpenAPI path
-   */
   protected convertToOpenAPIPath(path: string): string {
     return path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, '{$1}');
   }
 
-  /**
-   * Merge endpoint definitions, preferring non-undefined values
-   */
   protected mergeEndpoints(base: EndpointDefinition, override: Partial<EndpointDefinition>): EndpointDefinition {
     return {
       ...base,
@@ -109,9 +84,6 @@ export abstract class BaseDiscoverer {
     };
   }
 
-  /**
-   * Create a basic endpoint definition
-   */
   protected createBaseEndpoint(
     method: string,
     path: string,
@@ -148,9 +120,6 @@ export abstract class BaseDiscoverer {
     };
   }
 
-  /**
-   * Filter endpoints based on include/exclude patterns
-   */
   protected filterEndpoints(
     endpoints: EndpointDefinition[],
     include?: string[],
@@ -158,7 +127,6 @@ export abstract class BaseDiscoverer {
   ): EndpointDefinition[] {
     let filtered = endpoints;
 
-    // Apply include filters
     if (include && include.length > 0) {
       filtered = filtered.filter(endpoint => {
         return include.some(pattern => {
@@ -168,7 +136,6 @@ export abstract class BaseDiscoverer {
       });
     }
 
-    // Apply exclude filters
     if (exclude && exclude.length > 0) {
       filtered = filtered.filter(endpoint => {
         return !exclude.some(pattern => {
@@ -181,9 +148,6 @@ export abstract class BaseDiscoverer {
     return filtered;
   }
 
-  /**
-   * Log discovery progress
-   */
   protected log(level: 'info' | 'warn' | 'error' | 'debug', message: string, data?: unknown): void {
     const timestamp = new Date().toISOString();
     const logData = data ? ` ${JSON.stringify(data)}` : '';

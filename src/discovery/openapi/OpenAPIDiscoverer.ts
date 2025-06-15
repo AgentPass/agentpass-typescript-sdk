@@ -14,7 +14,6 @@ import * as path from 'path';
 import * as https from 'https';
 import * as http from 'http';
 
-// Placeholder types for compilation
 interface OpenAPIV3Document {
   openapi?: string;
   swagger?: string;
@@ -123,7 +122,6 @@ interface ExternalDocumentation {
   description?: string;
   url: string;
 }
-// Simple HTTP fetch implementation
 const httpFetch = {
   get: async (url: string, options: { headers?: Record<string, string> } = {}): Promise<{ data: any }> => {
     return new Promise((resolve, reject) => {
@@ -149,12 +147,10 @@ const httpFetch = {
         });
         res.on('end', () => {
           try {
-            // Try to parse as JSON first
             let parsedData;
             try {
               parsedData = JSON.parse(data);
             } catch {
-              // If JSON parsing fails, return as string (could be YAML)
               parsedData = data;
             }
             resolve({ data: parsedData });
@@ -179,10 +175,8 @@ const httpFetch = {
   isAxiosError: (err: unknown) => false
 };
 
-// Simple OpenAPI spec validator (just returns the spec as-is for now)
 const SwaggerParser = { 
   validate: async (spec: unknown) => {
-    // Basic validation - check if it's an OpenAPI spec
     if (typeof spec === 'object' && spec !== null) {
       const specObj = spec as any;
       if (specObj.openapi || specObj.swagger) {
@@ -233,38 +227,28 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     }
   }
 
-  /**
-   * Load OpenAPI specification from various sources
-   */
   private async loadOpenAPISpec(options: DiscoverOptions): Promise<OpenAPIV3Document> {
     let spec: unknown;
 
     if (options.openapi) {
       if (typeof options.openapi === 'string') {
-        // Load from file path or URL
         if (this.isUrl(options.openapi)) {
           spec = await this.loadFromUrl(options.openapi, options);
         } else {
           spec = await this.loadFromFile(options.openapi);
         }
       } else {
-        // Use provided object
         spec = options.openapi;
       }
     } else if (options.url) {
-      // Try to discover OpenAPI spec from URL
       spec = await this.discoverSpecFromUrl(options.url, options);
     } else {
       throw new DiscoveryError('No OpenAPI specification source provided');
     }
 
-    // Parse and validate the spec
     return await SwaggerParser.validate(spec) as OpenAPIV3Document;
   }
 
-  /**
-   * Load OpenAPI spec from URL
-   */
   private async loadFromUrl(url: string, options: DiscoverOptions): Promise<unknown> {
     try {
       const headers: Record<string, string> = {
@@ -284,9 +268,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     }
   }
 
-  /**
-   * Load OpenAPI spec from file
-   */
   private async loadFromFile(filePath: string): Promise<unknown> {
     try {
       const absolutePath = path.resolve(filePath);
@@ -300,11 +281,9 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
       if (filePath.endsWith('.json')) {
         return JSON.parse(content);
       } else if (filePath.endsWith('.yaml') || filePath.endsWith('.yml')) {
-        // For YAML, we'll rely on swagger-parser to handle it
-        return content;
+          return content;
       } else {
-        // Try to parse as JSON first, then let swagger-parser handle it
-        try {
+          try {
           return JSON.parse(content);
         } catch {
           return content;
@@ -342,7 +321,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
           return spec;
         }
       } catch (error) {
-        // Continue trying other paths
         this.log('info', `No spec found at ${specPath}`);
       }
     }
@@ -350,9 +328,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     throw new DiscoveryError(`No OpenAPI specification found at ${baseUrl}`);
   }
 
-  /**
-   * Convert OpenAPI specification to endpoint definitions
-   */
   private convertSpecToEndpoints(spec: OpenAPIV3Document): EndpointDefinition[] {
     const endpoints: EndpointDefinition[] = [];
 
@@ -388,9 +363,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     return endpoints;
   }
 
-  /**
-   * Convert OpenAPI operation to endpoint definition
-   */
   private convertOperationToEndpoint(
     method: HTTPMethod,
     pathPattern: string,
@@ -400,7 +372,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
   ): EndpointDefinition {
     const normalizedPath = this.normalizePath(pathPattern);
     
-    // Combine path-level and operation-level parameters
     const pathObj = pathItem as PathItem;
     const opObj = operation as Operation;
     const allParameters = [
@@ -434,9 +405,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     });
   }
 
-  /**
-   * Convert OpenAPI parameters to parameter definitions
-   */
   private convertParameters(
     parameters: (Parameter | Reference)[],
     spec: OpenAPIV3Document
@@ -464,9 +432,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     return result;
   }
 
-  /**
-   * Convert OpenAPI request body to request body definition
-   */
   private convertRequestBody(
     requestBody: unknown,
     spec: OpenAPIV3Document
@@ -496,9 +461,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     }
   }
 
-  /**
-   * Convert OpenAPI responses to response definitions
-   */
   private convertResponses(
     responses: Responses,
     spec: OpenAPIV3Document
@@ -512,7 +474,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
         let schema: JSONSchema | undefined;
         
         if (resolved.content) {
-          // Try to get schema from common content types
           const contentTypes = ['application/json', 'application/xml', 'text/plain'];
           for (const contentType of contentTypes) {
             const mediaType = resolved.content[contentType];
@@ -522,7 +483,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
             }
           }
           
-          // If no common content type found, use the first available
           if (!schema) {
             const firstContent = Object.values(resolved.content)[0];
             if (firstContent?.schema) {
@@ -544,9 +504,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     return result;
   }
 
-  /**
-   * Convert OpenAPI headers
-   */
   private convertHeaders(
     headers: unknown,
     spec: OpenAPIV3Document
@@ -572,9 +529,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     return result;
   }
 
-  /**
-   * Convert OpenAPI schema to JSON schema
-   */
   private convertSchema(
     schema: Schema | undefined,
     spec: OpenAPIV3Document
@@ -620,9 +574,6 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     }
   }
 
-  /**
-   * Resolve OpenAPI reference
-   */
   private resolveReference<T>(ref: T | Reference, spec: OpenAPIV3Document): T {
     if (!ref || typeof ref !== 'object' || !('$ref' in ref)) return ref as T;
 
@@ -645,22 +596,16 @@ export class OpenAPIDiscoverer extends BaseDiscoverer {
     return result as T;
   }
 
-  /**
-   * Get type from OpenAPI schema
-   */
   private getTypeFromSchema(schema: Schema | undefined): string {
     if (!schema) return 'string';
 
     if ('$ref' in schema) {
-      return 'object'; // Default for references
+      return 'object';
     }
 
     return schema.type || 'string';
   }
 
-  /**
-   * Check if string is a URL
-   */
   private isUrl(str: string): boolean {
     return str.startsWith('http://') || str.startsWith('https://');
   }

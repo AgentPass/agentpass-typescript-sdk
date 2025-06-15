@@ -19,7 +19,6 @@ import axios, { AxiosRequestConfig } from 'axios';
 import { randomUUID } from 'crypto';
 import * as http from 'http';
 
-// AgentPass MCP Server Implementation
 class AgentPassMCPServer implements MCPServer {
   public info: { name: string; version: string; description?: string };
   public capabilities: { tools?: boolean; resources?: boolean; prompts?: boolean; logging?: boolean };
@@ -76,17 +75,13 @@ class AgentPassMCPServer implements MCPServer {
     const port = (this.transport.config?.port as number) ?? 3000;
     const host = (this.transport.config?.host as string) || 'localhost';
 
-    // Create StreamableHTTPServerTransport
     this.serverTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID()
     });
 
-    // Connect the server to the transport
     await this.server.connect(this.serverTransport);
 
-    // Create HTTP server that delegates to the StreamableHTTPServerTransport
     this.httpServer = http.createServer(async (req, res) => {
-      // Set CORS headers
       if (this.transport.config?.cors) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
@@ -100,7 +95,6 @@ class AgentPassMCPServer implements MCPServer {
       }
 
       if (req.url === '/mcp') {
-        // Parse request body for POST requests
         if (req.method === 'POST') {
           let body = '';
           req.on('data', chunk => {
@@ -118,7 +112,6 @@ class AgentPassMCPServer implements MCPServer {
             }
           });
         } else {
-          // Handle GET and DELETE requests
           await (this.serverTransport as StreamableHTTPServerTransport).handleRequest(req, res);
         }
       } else {
@@ -142,10 +135,8 @@ class AgentPassMCPServer implements MCPServer {
     const messagesEndpoint = '/sse/messages';
 
     this.httpServer = http.createServer((req, res) => {
-      // Debug logging
       console.error(`[SSE] ${req.method} ${req.url} from ${req.headers['user-agent'] || 'unknown'}`);
       
-      // Set CORS headers
       if (this.transport.config?.cors) {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -159,7 +150,6 @@ class AgentPassMCPServer implements MCPServer {
         return;
       }
 
-      // Parse URL to handle query parameters
       const urlParts = req.url?.split('?') || [''];
       const pathname = urlParts[0];
 
@@ -186,8 +176,7 @@ class AgentPassMCPServer implements MCPServer {
 
   private async handleSSEConnection(req: http.IncomingMessage, res: http.ServerResponse, messagesEndpoint: string): Promise<void> {
     try {
-      // Create SSE transport with the messages endpoint
-      this.serverTransport = new SSEServerTransport(messagesEndpoint, res);
+        this.serverTransport = new SSEServerTransport(messagesEndpoint, res);
       
       // Connect the server to the transport (this automatically calls start())
       await this.server.connect(this.serverTransport);
@@ -266,9 +255,6 @@ export class MCPGenerator {
     this.middlewareRunner = new MiddlewareRunner(agentpass.getMiddleware());
   }
 
-  /**
-   * Generate MCP server from endpoints
-   */
   async generate(endpoints: EndpointDefinition[], options: MCPOptions = {}): Promise<MCPServer> {
     if (endpoints.length === 0) {
       throw new MCPError('No endpoints provided for MCP server generation');
@@ -289,15 +275,12 @@ export class MCPGenerator {
       ...options,
     };
 
-    // Validate transport type
     if (!['stdio', 'http', 'sse'].includes(config.transport)) {
       throw new MCPError(`Unsupported transport type: ${config.transport}. Supported types: stdio, http, sse`);
     }
 
-    // Convert endpoints to MCP tools
     const tools = this.createMCPTools(endpoints, options);
 
-    // Create MCP server with proper capabilities format
     const capabilities: any = {};
     if (config.capabilities.tools) capabilities.tools = {};
     if (config.capabilities.resources) capabilities.resources = {};
@@ -314,17 +297,14 @@ export class MCPGenerator {
       }
     );
 
-    // Register tool handlers
     this.registerToolHandlers(server, tools);
 
-    // Create transport configuration
     const transportConfig: Record<string, unknown> = {};
     if (config.port !== undefined) transportConfig.port = config.port;
     if (config.host) transportConfig.host = config.host;
     if (config.cors !== undefined) transportConfig.cors = config.cors;
     if (config.auth) transportConfig.auth = config.auth;
 
-    // Create AgentPass MCP Server wrapper
     const mcpServer = new AgentPassMCPServer(
       server,
       {
@@ -342,9 +322,6 @@ export class MCPGenerator {
     return mcpServer;
   }
 
-  /**
-   * Create MCP tools from endpoints
-   */
   private createMCPTools(endpoints: EndpointDefinition[], options: MCPOptions): MCPTool[] {
     const tools: MCPTool[] = [];
 
@@ -360,9 +337,6 @@ export class MCPGenerator {
     return tools;
   }
 
-  /**
-   * Create a single MCP tool from an endpoint
-   */
   private createMCPTool(endpoint: EndpointDefinition, options: MCPOptions): MCPTool {
     const toolName = this.generateToolName(endpoint, options.toolNaming);
     const description = this.generateToolDescription(endpoint, options.toolDescription);
@@ -376,9 +350,6 @@ export class MCPGenerator {
     };
   }
 
-  /**
-   * Generate tool name from endpoint
-   */
   private generateToolName(
     endpoint: EndpointDefinition,
     customNaming?: (endpoint: EndpointDefinition) => string
@@ -387,7 +358,6 @@ export class MCPGenerator {
       return customNaming(endpoint);
     }
 
-    // Default naming strategy: method_resource
     const method = endpoint.method.toLowerCase();
     const pathParts = endpoint.path.split('/').filter(part => part && !part.startsWith('{'));
     const resource = pathParts[pathParts.length - 1] || pathParts[0] || 'endpoint';
@@ -395,9 +365,6 @@ export class MCPGenerator {
     return `${method}_${resource}`.replace(/[^a-zA-Z0-9_]/g, '_');
   }
 
-  /**
-   * Generate tool description from endpoint
-   */
   private generateToolDescription(
     endpoint: EndpointDefinition,
     customDescription?: (endpoint: EndpointDefinition) => string
@@ -414,16 +381,12 @@ export class MCPGenerator {
       return endpoint.summary;
     }
 
-    // Generate default description
     const action = this.getActionFromMethod(endpoint.method);
     const resource = this.getResourceFromPath(endpoint.path);
     
     return `${action} ${resource}`;
   }
 
-  /**
-   * Create input schema for MCP tool
-   */
   private createInputSchema(endpoint: EndpointDefinition): JSONSchema {
     const schema: JSONSchema = {
       type: 'object',
@@ -431,7 +394,6 @@ export class MCPGenerator {
       required: [],
     };
 
-    // Add path parameters
     if (endpoint.parameters) {
       for (const param of endpoint.parameters) {
         if (param.in === 'path' || param.in === 'query') {
@@ -448,7 +410,6 @@ export class MCPGenerator {
       }
     }
 
-    // Add request body
     if (endpoint.requestBody) {
       const jsonContentType = endpoint.requestBody.content['application/json'];
       if (jsonContentType?.schema) {
@@ -463,7 +424,6 @@ export class MCPGenerator {
       }
     }
 
-    // Add headers if any are required
     const headerParams = endpoint.parameters?.filter(p => p.in === 'header') || [];
     if (headerParams.length > 0) {
       schema.properties!.headers = {
@@ -483,9 +443,6 @@ export class MCPGenerator {
     return schema;
   }
 
-  /**
-   * Create tool handler for endpoint
-   */
   private createToolHandler(endpoint: EndpointDefinition, options: MCPOptions) {
     return async (args: Record<string, unknown>, context: MiddlewareContext): Promise<unknown> => {
       const requestId = randomUUID();
@@ -510,31 +467,23 @@ export class MCPGenerator {
       };
 
       try {
-        // Run pre-middleware
         await this.middlewareRunner.runAuth(middlewareContext);
         await this.middlewareRunner.runAuthz(middlewareContext);
         await this.middlewareRunner.runPre(middlewareContext);
 
-        // Make HTTP request
         const response = await this.makeHttpRequest(endpoint, middlewareContext);
 
-        // Run post-middleware
         const processedResponse = await this.middlewareRunner.runPost(middlewareContext, response);
 
         return processedResponse;
       } catch (error) {
-        // Run error middleware
         await this.middlewareRunner.runError(middlewareContext, error as Error);
         throw error;
       }
     };
   }
 
-  /**
-   * Register tool handlers with MCP server
-   */
   private registerToolHandlers(server: Server, tools: MCPTool[]): void {
-    // List tools handler
     server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: tools.map(tool => ({
@@ -545,7 +494,6 @@ export class MCPGenerator {
       };
     });
 
-    // Call tool handler
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
       
@@ -581,19 +529,14 @@ export class MCPGenerator {
     });
   }
 
-  /**
-   * Make HTTP request for endpoint
-   */
   private async makeHttpRequest(
     endpoint: EndpointDefinition,
     context: MiddlewareContext
   ): Promise<{ status: number; statusText: string; headers: Record<string, string>; data: unknown }> {
-    // Get base URL from context metadata or use default
     const baseUrl = typeof context.metadata.baseUrl === 'string' 
       ? context.metadata.baseUrl 
       : 'http://localhost:3000';
     
-    // Replace path parameters
     let url = endpoint.path;
     for (const [key, value] of Object.entries(context.request.params)) {
       url = url.replace(`{${key}}`, String(value));
@@ -646,13 +589,9 @@ export class MCPGenerator {
     }
   }
 
-  /**
-   * Extract path parameters from arguments
-   */
   private extractPathParams(path: string, args: Record<string, unknown>): Record<string, unknown> {
     const params: Record<string, unknown> = {};
     
-    // Extract parameter names from path
     const pathParamRegex = /[{:]([a-zA-Z_][a-zA-Z0-9_]*)[}]?/g;
     let match;
     
@@ -666,13 +605,9 @@ export class MCPGenerator {
     return params;
   }
 
-  /**
-   * Extract query parameters from arguments
-   */
   private extractQueryParams(args: Record<string, unknown>): Record<string, unknown> {
     const query: Record<string, unknown> = {};
     
-    // Any arg that's not a path param, body, or headers becomes a query param
     const excludeKeys = ['body', 'headers'];
     
     for (const [key, value] of Object.entries(args)) {
@@ -684,9 +619,6 @@ export class MCPGenerator {
     return query;
   }
 
-  /**
-   * Get action description from HTTP method
-   */
   private getActionFromMethod(method: HTTPMethod): string {
     const actions: Record<HTTPMethod, string> = {
       GET: 'Retrieve',
@@ -701,9 +633,6 @@ export class MCPGenerator {
     return actions[method] || 'Interact with';
   }
 
-  /**
-   * Get resource description from path
-   */
   private getResourceFromPath(path: string): string {
     const parts = path.split('/').filter(part => part && !part.startsWith('{') && !part.startsWith(':'));
     
@@ -717,7 +646,6 @@ export class MCPGenerator {
       return 'resource';
     }
     
-    // Convert to singular if it looks plural
     if (lastPart.endsWith('s') && lastPart.length > 1) {
       return lastPart.slice(0, -1);
     }

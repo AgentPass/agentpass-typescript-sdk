@@ -4,32 +4,22 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 
-**Auto-Discovery HTTP to MCP Bridge** - Automatically discover HTTP endpoints from existing web services and generate Model Context Protocol (MCP) servers that enable AI assistants to interact with your APIs.
+TypeScript SDK for bridging HTTP APIs with the Model Context Protocol (MCP).
 
-## 🚀 Overview
+## Overview
 
-AgentPass is an open-source TypeScript SDK that bridges traditional HTTP APIs with the Model Context Protocol (MCP). It enables AI assistants like Claude Desktop to seamlessly interact with any web service by automatically discovering endpoints and generating MCP-compliant tools.
+AgentPass automatically discovers endpoints from web frameworks and generates MCP servers for AI assistants.
 
-### ✨ Key Features
+### Features
 
-- **🔍 Auto-Discovery**: Zero-config endpoint discovery from Express, Fastify, Koa, NestJS, Next.js
-- **📊 OpenAPI Support**: Complete OpenAPI/Swagger specification parsing with real HTTP fetching and tool generation
-- **🔗 Multi-Transport**: stdio (Claude Desktop), HTTP (web clients), SSE (mcp-remote)
-- **🔒 Security First**: Built-in authentication, authorization, rate limiting, and middleware
-- **🧩 Plugin Architecture**: Extensible system for custom functionality and integrations
-- **⚡ Zero Configuration**: Works out of the box with intelligent defaults
-- **🔧 Developer Friendly**: Full TypeScript support with comprehensive type safety
-- **📈 Production Ready**: Enterprise-grade error handling, monitoring, and extensibility
+- Auto-discovery from Express, Fastify, Koa, NestJS, Next.js
+- OpenAPI/Swagger specification parsing
+- Multiple transports: stdio, HTTP, SSE
+- Built-in authentication, authorization, rate limiting
+- Plugin architecture
 
-## 🎯 Use Cases
 
-- **API Integration**: Connect Claude Desktop to existing REST APIs instantly
-- **Internal Tools**: Expose company APIs to AI assistants for automation
-- **Microservices**: Bridge microservice architectures with AI workflows
-- **Legacy Systems**: Modernize older APIs with MCP compatibility
-- **Development Tools**: Auto-generate AI-accessible tools from API specifications
-
-## 📦 Installation
+## Installation
 
 ```bash
 npm install agentpass @modelcontextprotocol/sdk
@@ -43,9 +33,9 @@ yarn add agentpass @modelcontextprotocol/sdk
 pnpm add agentpass @modelcontextprotocol/sdk
 ```
 
-## 🏃‍♂️ Quick Start
+## Quick Start
 
-### Basic Express.js Integration
+### Express
 
 ```typescript
 import { AgentPass } from 'agentpass';
@@ -75,7 +65,7 @@ const mcpServer = await agentpass.generateMCPServer({
 await mcpServer.start();
 ```
 
-### Basic Fastify Integration
+### Fastify
 
 ```typescript
 import { AgentPass } from 'agentpass';
@@ -108,17 +98,16 @@ const mcpServer = await agentpass.generateMCPServer({
 await mcpServer.start();
 ```
 
-### OpenAPI/Swagger Integration
+### OpenAPI
 
 ```typescript
 import { AgentPass } from 'agentpass';
 
-// Create AgentPass instance with OpenAPI auto-discovery from URL
 const agentpass = await AgentPass.create({
   name: 'petstore-api',
   version: '1.0.0',
   framework: 'openapi',
-  openapi: 'https://petstore3.swagger.io/api/v3/openapi.json' // Real HTTP fetching
+  openapi: 'https://petstore3.swagger.io/api/v3/openapi.json'
 });
 
 // Generate web-accessible MCP server
@@ -141,7 +130,7 @@ await client.connect(transport);
 const tools = await client.listTools();
 ```
 
-## 🔧 MCP Transport Options
+## Transport Options
 
 AgentPass supports multiple MCP transport protocols:
 
@@ -206,7 +195,7 @@ const mcpServer = await agentpass.generateMCPServer({
 });
 ```
 
-## 🛡️ Security & Middleware
+## Security & Middleware
 
 ### Authentication
 
@@ -271,7 +260,7 @@ agentpass.use('post', async (context, response) => {
 });
 ```
 
-## 🎨 Customization
+## Customization
 
 ### Custom Tool Naming
 
@@ -297,7 +286,7 @@ const mcpServer = await agentpass.generateMCPServer({
 });
 ```
 
-## 🧩 Framework Support
+## Framework Support
 
 ### Express.js ✅
 
@@ -339,7 +328,7 @@ const agentpass = await AgentPass.create({
   name: 'my-api', 
   version: '1.0.0',
   framework: 'openapi',
-  openapi: 'https://api.example.com/openapi.json' // Real HTTP fetching, file path, or object
+  openapi: 'https://api.example.com/openapi.json'
 });
 ```
 
@@ -372,7 +361,7 @@ The project includes comprehensive examples organized by framework in the `examp
 ### Framework Examples
 - **[Express Examples](examples/express/)** - Complete Express.js implementation with stdio, HTTP, and SSE servers
 - **[Fastify Examples](examples/fastify/)** - Complete Fastify implementation with stdio, HTTP, and SSE servers  
-- **[OpenAPI Integration](examples/openapi/)** - OpenAPI/Swagger specification parsing with real HTTP fetching
+- **OpenAPI** - OpenAPI/Swagger specification parsing
 
 ### Example Structure
 ```
@@ -517,36 +506,10 @@ interface MCPServerConfig {
 }
 ```
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for details.
+See [Contributing Guide](CONTRIBUTING.md) for details.
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+## License
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- **Documentation**: [Full Documentation](https://github.com/agentpass/agentpass-sdk#readme)
-- **Examples**: [Example Repository](https://github.com/agentpass/agentpass-sdk/tree/main/examples)
-- **Issues**: [GitHub Issues](https://github.com/agentpass/agentpass-sdk/issues)
-- **NPM Package**: [agentpass on NPM](https://www.npmjs.com/package/agentpass)
-- **Model Context Protocol**: [MCP Documentation](https://modelcontextprotocol.io)
-
-## 🙏 Acknowledgments
-
-- [Model Context Protocol](https://modelcontextprotocol.io) - The foundation protocol this SDK implements
-- [Anthropic](https://anthropic.com) - For creating Claude and the MCP specification
-- The open-source community for their invaluable contributions
-
----
-
-**Made with ❤️ for the AI community**
-
-Transform your HTTP APIs into AI-accessible tools with AgentPass.
+MIT License - see [LICENSE](LICENSE) file.

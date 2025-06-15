@@ -23,8 +23,7 @@
      - `NestJSDiscoverer.ts` - NestJS decorator analysis and module introspection
      - `NextJSDiscoverer.ts` - Next.js API routes file system scanning
    - **Specification Discoverers**:
-     - `OpenAPIDiscoverer.ts` - Complete OpenAPI/Swagger parsing with real HTTP fetching and reference resolution
-     - `URLDiscoverer.ts` - Live endpoint crawling with intelligent pattern detection
+     - `OpenAPIDiscoverer.ts` - Complete OpenAPI/Swagger parsing with HTTP fetching and reference resolution
 
 3. **MCP Generation** (`src/mcp/`)
    - `MCPGenerator.ts` - Converts discovered endpoints to MCP tools and servers
@@ -49,25 +48,24 @@
   - **Express**: Route introspection via app._router analysis
   - **Fastify**: Advanced route discovery using inject() method probing and register() pattern support
   - **Koa**: Router middleware chain analysis
-- **OpenAPI/Swagger**: Complete spec parsing with real HTTP fetching, schema validation and reference resolution
-- **URL Crawling**: Intelligent endpoint discovery through HTTP response analysis
+- **OpenAPI/Swagger**: Complete spec parsing with HTTP fetching, schema validation and reference resolution
 - **Manual Definition**: Programmatic endpoint registration for custom scenarios
 
 ### 🚀 MCP Transport Implementation
 
 **stdio Transport (Claude Desktop):**
-- Uses official MCP SDK `StdioServerTransport`
+- Uses MCP SDK `StdioServerTransport`
 - stdin/stdout communication protocol
 - Perfect for desktop AI applications
 
 **HTTP Transport (Web Clients):**
-- Uses official MCP SDK `StreamableHTTPServerTransport` 
+- Uses MCP SDK `StreamableHTTPServerTransport` 
 - Full MCP protocol initialization handshake
 - Session management with UUID generation
 - CORS support for browser clients
 
 **SSE Transport (mcp-remote):**
-- Uses official MCP SDK `SSEServerTransport`
+- Uses MCP SDK `SSEServerTransport`
 - Server-Sent Events with HTTP POST for bidirectional communication
 - Compatible with mcp-remote package for Claude Desktop bridge
 
@@ -84,7 +82,7 @@
 | **Express.js** | ✅ Full | ✅ E2E Validated | Route introspection, middleware analysis, nested routers |
 | **Fastify** | ✅ Full | ✅ E2E Validated | Schema introspection, route tree access, performance optimized |
 | **Koa** | ✅ Implementation | ⚠️ Ready | koa-router support, middleware chain analysis |
-| **OpenAPI/Swagger** | ✅ Full | ✅ E2E Validated | Real HTTP fetching, complete spec parsing, reference resolution, schema generation |
+| **OpenAPI/Swagger** | ✅ Full | ✅ E2E Validated | HTTP fetching, complete spec parsing, reference resolution, schema generation |
 | **NestJS** | ✅ Implementation | ⚠️ Ready | Decorator analysis, dependency injection, modular architecture |
 | **Next.js** | ✅ Implementation | ⚠️ Ready | File system scanning, API routes, dynamic routes |
 
@@ -154,10 +152,10 @@ const mcpServer = await agentpass.generateMCPServer({
 - Plugin system integration
 
 **E2E Tests** (`tests/e2e/`):
-- **Express Integration**: Complete stdio/HTTP/SSE transport testing with real MCP SDK clients
-- **Fastify Integration**: Complete stdio/HTTP/SSE transport testing with real MCP SDK clients
+- **Express Integration**: Complete stdio/HTTP/SSE transport testing with MCP SDK clients
+- **Fastify Integration**: Complete stdio/HTTP/SSE transport testing with MCP SDK clients
 - **OpenAPI Integration**: Complete stdio/HTTP/SSE transport testing with real external API fetching
-- **Real MCP Communication**: Using official `@modelcontextprotocol/sdk` clients (no raw HTTP calls)
+- **MCP Communication**: Using `@modelcontextprotocol/sdk` clients
 - **Transport Validation**: 
   - stdio: `StdioClientTransport` for Claude Desktop integration
   - HTTP: `StreamableHTTPClientTransport` for web clients  
@@ -173,7 +171,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-// Real MCP client testing using official SDK
+// MCP client testing using SDK
 const httpClient = new Client({ name: "test-client", version: "1.0.0" });
 await httpClient.connect(new StreamableHTTPClientTransport(new URL(serverUrl)));
 const tools = await httpClient.listTools();
@@ -203,7 +201,7 @@ examples/
 ├── shared/                   # Common utilities
 │   └── api-data.ts            # Shared JSON data and tool utilities
 └── openapi/                  # OpenAPI examples
-    └── server.ts             # OpenAPI/Swagger parsing with real HTTP fetching
+    └── server.ts             # OpenAPI/Swagger parsing with HTTP fetching
 ```
 
 **Common API Features** (identical across Express and Fastify):
@@ -231,7 +229,7 @@ npm run example:express:stdio
 ```bash
 npm run example:express:http
 ```
-- **StreamableHTTP**: Uses official MCP SDK StreamableHTTPServerTransport
+- **StreamableHTTP**: Uses MCP SDK StreamableHTTPServerTransport
 - **Full Protocol**: Complete MCP initialization handshake
 - **CORS Enabled**: Browser-compatible with proper CORS headers
 - **MCP SDK Usage**: Shows proper client connection code (no curl)
@@ -262,7 +260,7 @@ npm run example:fastify:stdio
 ```bash
 npm run example:fastify:http
 ```
-- **StreamableHTTP**: Uses official MCP SDK StreamableHTTPServerTransport
+- **StreamableHTTP**: Uses MCP SDK StreamableHTTPServerTransport
 - **Full Protocol**: Complete MCP initialization handshake
 - **CORS Enabled**: Browser-compatible with proper CORS headers
 - **MCP SDK Usage**: Shows proper client connection code (no curl)
@@ -300,7 +298,7 @@ npm run dev             # Watch mode compilation
 # Testing
 npm test                # All tests
 npm run test:unit       # Unit tests only
-npm run test:e2e        # E2E tests only (includes real MCP communication)
+npm run test:e2e        # E2E tests only (includes MCP communication)
 npm run test:coverage   # With coverage reporting
 
 # Code Quality
@@ -335,7 +333,6 @@ src/
 │   ├── nestjs/        # NestJS discovery
 │   ├── nextjs/        # Next.js discovery
 │   ├── openapi/       # OpenAPI parsing
-│   └── url/           # URL crawling
 ├── mcp/                # MCP server generation
 │   └── MCPGenerator.ts # MCP tools and server creation
 ├── middleware/         # Middleware implementations
@@ -359,7 +356,7 @@ examples/              # Comprehensive examples
 
 tests/
 ├── e2e/              # End-to-end tests
-│   ├── mcp-real-clients.e2e.test.ts  # Real MCP clients
+│   ├── mcp-real-clients.e2e.test.ts  # MCP clients
 │   ├── express.e2e.test.ts           # Express integration
 │   ├── fastify.e2e.test.ts           # Fastify integration
 │   └── openapi.e2e.test.ts           # OpenAPI parsing

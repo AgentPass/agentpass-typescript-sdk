@@ -18,10 +18,8 @@ import { KoaDiscoverer } from '../discovery/koa/KoaDiscoverer';
 import { FastifyDiscoverer } from '../discovery/fastify/FastifyDiscoverer';
 import { NestJSDiscoverer } from '../discovery/nestjs/NestJSDiscoverer';
 import { NextJSDiscoverer } from '../discovery/nextjs/NextJSDiscoverer';
-import { URLDiscoverer } from '../discovery/url/URLDiscoverer';
 import { MCPGenerator } from '../mcp/MCPGenerator';
 import { EVENT_TYPES, SUPPORTED_FRAMEWORKS } from './constants';
-// Mock uuid for compilation
 const uuidv4 = (): string => 'mock-uuid-' + Math.random().toString(36).substr(2, 9);
 
 export class AgentPass extends EventEmitter {
@@ -40,9 +38,6 @@ export class AgentPass extends EventEmitter {
     this.initializeDefaultDiscoverers();
   }
 
-  /**
-   * Create AgentPass instance with automatic discovery
-   */
   static async create(config: AgentPassConfig): Promise<AgentPass> {
     const instance = new AgentPass(config);
     
@@ -59,9 +54,6 @@ export class AgentPass extends EventEmitter {
     return instance;
   }
 
-  /**
-   * Initialize default discoverers for supported frameworks
-   */
   private initializeDefaultDiscoverers(): void {
     this.discoverers.set(SUPPORTED_FRAMEWORKS.EXPRESS, new ExpressDiscoverer());
     this.discoverers.set(SUPPORTED_FRAMEWORKS.FASTIFY, new FastifyDiscoverer());
@@ -69,33 +61,20 @@ export class AgentPass extends EventEmitter {
     this.discoverers.set(SUPPORTED_FRAMEWORKS.NESTJS, new NestJSDiscoverer());
     this.discoverers.set(SUPPORTED_FRAMEWORKS.NEXTJS, new NextJSDiscoverer());
     this.discoverers.set(SUPPORTED_FRAMEWORKS.OPENAPI, new OpenAPIDiscoverer());
-    this.discoverers.set('url', new URLDiscoverer());
   }
 
-  /**
-   * Get AgentPass configuration
-   */
   getConfig(): AgentPassConfig {
     return { ...this.config };
   }
 
-  /**
-   * Get all discovered endpoints
-   */
   getEndpoints(): EndpointDefinition[] {
     return Array.from(this.endpoints.values());
   }
 
-  /**
-   * Get endpoint by ID
-   */
   getEndpoint(id: string): EndpointDefinition | undefined {
     return this.endpoints.get(id);
   }
 
-  /**
-   * Discover endpoints using the appropriate discoverer
-   */
   async discover(options: DiscoverOptions): Promise<void> {
     this.emit(EVENT_TYPES.DISCOVERY_START, {
       type: EVENT_TYPES.DISCOVERY_START,
@@ -111,13 +90,10 @@ export class AgentPass extends EventEmitter {
 
       const discoveredEndpoints = await discoverer.discover(options);
       
-      // Apply include/exclude filters
       const filteredEndpoints = this.filterEndpoints(discoveredEndpoints, options.include, options.exclude);
       
-      // Apply transformers
       const transformedEndpoints = this.applyTransformers(filteredEndpoints);
       
-      // Store endpoints
       for (const endpoint of transformedEndpoints) {
         this.endpoints.set(endpoint.id, endpoint);
         this.emit(EVENT_TYPES.DISCOVERY_ENDPOINT, {
@@ -127,7 +103,6 @@ export class AgentPass extends EventEmitter {
         });
       }
 
-      // Run plugin onDiscover hooks
       for (const plugin of this.plugins.values()) {
         if (plugin.onDiscover) {
           await plugin.onDiscover(transformedEndpoints, this);
@@ -156,9 +131,6 @@ export class AgentPass extends EventEmitter {
     }
   }
 
-  /**
-   * Manually define an endpoint
-   */
   defineEndpoint(endpoint: EndpointDefinition): void {
     if (!endpoint.id) {
       endpoint.id = this.generateEndpointId(endpoint.method, endpoint.path);
@@ -173,9 +145,6 @@ export class AgentPass extends EventEmitter {
     });
   }
 
-  /**
-   * Add middleware to the pipeline
-   */
   use(phase: keyof MiddlewareConfig, middleware: unknown): void {
     if (!this.middleware[phase]) {
       this.middleware[phase] = [];
@@ -183,20 +152,13 @@ export class AgentPass extends EventEmitter {
     (this.middleware[phase] as unknown[])?.push(middleware);
   }
 
-  /**
-   * Add endpoint transformer
-   */
   transform(transformer: EndpointTransformer): void {
     this.transformers.push(transformer);
   }
 
-  /**
-   * Register a plugin
-   */
   plugin(name: string, plugin: Plugin): void {
     this.plugins.set(name, plugin);
     
-    // Apply plugin middleware
     if (plugin.middleware) {
       const entries = Object.entries(plugin.middleware) as Array<[keyof MiddlewareConfig, unknown[]]>;
       entries.forEach(([phase, middlewares]) => {
@@ -209,7 +171,6 @@ export class AgentPass extends EventEmitter {
       });
     }
     
-    // Apply plugin transformers
     if (plugin.transformers) {
       plugin.transformers.forEach(transformer => {
         this.transform(transformer);
@@ -217,16 +178,12 @@ export class AgentPass extends EventEmitter {
     }
   }
 
-  /**
-   * Generate MCP server
-   */
   async generateMCPServer(options: MCPOptions = {}): Promise<MCPServer> {
     try {
       if (this.endpoints.size === 0) {
         throw new MCPError('No endpoints discovered. Run discover() first.');
       }
 
-      // Run plugin onGenerate hooks
       for (const plugin of this.plugins.values()) {
         if (plugin.onGenerate) {
           await plugin.onGenerate(options, this);
@@ -258,23 +215,14 @@ export class AgentPass extends EventEmitter {
     }
   }
 
-  /**
-   * Get middleware configuration
-   */
   getMiddleware(): MiddlewareConfig {
     return { ...this.middleware };
   }
 
-  /**
-   * Get registered plugins
-   */
   getPlugins(): Plugin[] {
     return Array.from(this.plugins.values());
   }
 
-  /**
-   * Register a custom discoverer
-   */
   registerDiscoverer(name: string, discoverer: BaseDiscoverer): void {
     this.discoverers.set(name, discoverer);
   }
@@ -369,9 +317,6 @@ export class AgentPass extends EventEmitter {
     return `${normalized}_${uuidv4().substring(0, 8)}`;
   }
 
-  /**
-   * Get statistics about the current state
-   */
   getStats(): {
     endpoints: number;
     discoverers: number;
@@ -386,9 +331,6 @@ export class AgentPass extends EventEmitter {
     };
   }
 
-  /**
-   * Clear all endpoints and reset state
-   */
   reset(): void {
     this.endpoints.clear();
     this.middleware = {};
