@@ -1,23 +1,33 @@
-# AgentPass SDK
+# AgentPass TypeScript SDK
 
 [![npm version](https://badge.fury.io/js/agentpass.svg)](https://badge.fury.io/js/agentpass)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 
-Auto-Discovery HTTP to MCP Bridge - Automatically discover HTTP endpoints from existing services and generate Model Context Protocol (MCP) servers.
+**Auto-Discovery HTTP to MCP Bridge** - Automatically discover HTTP endpoints from existing web services and generate Model Context Protocol (MCP) servers that enable AI assistants to interact with your APIs.
 
 ## 🚀 Overview
 
-AgentPass is an open-source JavaScript/TypeScript SDK that bridges the gap between traditional HTTP APIs and the Model Context Protocol (MCP). It enables AI assistants to interact seamlessly with any web service by automatically discovering endpoints and generating MCP-compliant tools.
+AgentPass is an open-source TypeScript SDK that bridges traditional HTTP APIs with the Model Context Protocol (MCP). It enables AI assistants like Claude Desktop to seamlessly interact with any web service by automatically discovering endpoints and generating MCP-compliant tools.
 
-### Key Features
+### ✨ Key Features
 
-- **🔍 Auto-Discovery**: Automatically discover endpoints from Express, Fastify, Koa, and other frameworks
-- **📊 OpenAPI Support**: Parse and convert OpenAPI/Swagger specifications
-- **🔒 Security First**: Built-in authentication, authorization, and rate limiting
-- **🧩 Plugin Architecture**: Extensible system for custom functionality
-- **⚡ Zero Configuration**: Works out of the box with sensible defaults
-- **🔧 Developer Friendly**: Full TypeScript support with comprehensive types
+- **🔍 Auto-Discovery**: Zero-config endpoint discovery from Express, Fastify, Koa, NestJS, Next.js
+- **📊 OpenAPI Support**: Complete OpenAPI/Swagger specification parsing and tool generation
+- **🔗 Multi-Transport**: stdio (Claude Desktop), HTTP (web clients), SSE (mcp-remote)
+- **🔒 Security First**: Built-in authentication, authorization, rate limiting, and middleware
+- **🧩 Plugin Architecture**: Extensible system for custom functionality and integrations
+- **⚡ Zero Configuration**: Works out of the box with intelligent defaults
+- **🔧 Developer Friendly**: Full TypeScript support with comprehensive type safety
+- **📈 Production Ready**: Enterprise-grade error handling, monitoring, and extensibility
+
+## 🎯 Use Cases
+
+- **API Integration**: Connect Claude Desktop to existing REST APIs instantly
+- **Internal Tools**: Expose company APIs to AI assistants for automation
+- **Microservices**: Bridge microservice architectures with AI workflows
+- **Legacy Systems**: Modernize older APIs with MCP compatibility
+- **Development Tools**: Auto-generate AI-accessible tools from API specifications
 
 ## 📦 Installation
 
@@ -35,7 +45,7 @@ pnpm add agentpass @modelcontextprotocol/sdk
 
 ## 🏃‍♂️ Quick Start
 
-### Basic Usage
+### Basic Express.js Integration
 
 ```typescript
 import { AgentPass } from 'agentpass';
@@ -50,351 +60,335 @@ app.get('/users/:id', (req, res) => {
 // Create AgentPass instance
 const agentpass = new AgentPass({
   name: 'my-api-service',
-  version: '1.0.0'
+  version: '1.0.0',
+  description: 'My API exposed as MCP tools'
 });
 
 // Auto-discover endpoints
-await agentpass.discover({ app, framework: 'express' });
-
-// Generate MCP server
-const mcpServer = await agentpass.generateMCPServer({
-  transport: 'stdio', // or 'http' for HTTP server
-  baseUrl: 'http://localhost:3000' // Where your API runs
-});
-
-// Start the MCP server
-await mcpServer.start();
-```
-
-### HTTP Transport (for web clients)
-
-```typescript
-// Generate HTTP MCP server
-const mcpServer = await agentpass.generateMCPServer({
-  transport: 'http',
-  port: 3001,
-  host: 'localhost',
-  cors: true,
-  baseUrl: 'http://localhost:3000'
-});
-
-await mcpServer.start();
-console.log(`MCP Server running at: ${mcpServer.getAddress()}`);
-
-// Test with HTTP requests
-// POST /mcp with JSON-RPC 2.0 messages
-```
-
-### stdio Transport (for Claude Desktop)
-
-```typescript
-// Generate stdio MCP server for Claude Desktop
-const mcpServer = await agentpass.generateMCPServer({
-  transport: 'stdio',
-  baseUrl: 'http://localhost:3000'
-});
-
-// Add to claude_desktop_config.json:
-// {
-//   "mcpServers": {
-//     "my-api": {
-//       "command": "node",
-//       "args": ["path/to/your/mcp-server.js"]
-//     }
-//   }
-// }
-```
-
-### Discovery from URL
-
-```typescript
-// Discover from a running service
-await agentpass.discover({
-  url: 'http://localhost:3000',
-  strategy: 'openapi' // or 'crawl', 'auto'
-});
-```
-
-### Framework-Specific Discovery
-
-```typescript
-// Express.js
-await agentpass.discover({ app: expressApp, framework: 'express' });
-
-// Fastify
-await agentpass.discover({ app: fastifyApp, framework: 'fastify' });
-
-// Koa with koa-router
-await agentpass.discover({ app: koaApp, framework: 'koa' });
-
-// NestJS
-await agentpass.discover({ app: nestApp, framework: 'nestjs' });
-
-// Next.js API routes
 await agentpass.discover({ 
-  framework: 'nextjs',
-  custom: { directory: './pages/api', baseUrl: '/api' }
+  app, 
+  framework: 'express' 
 });
 
-// OpenAPI/Swagger
-await agentpass.discover({
-  openapi: './openapi.json' // or URL or object
-});
-
-// Live URL crawling
-await agentpass.discover({
-  url: 'https://api.example.com',
-  strategy: 'crawl',
-  crawl: { maxDepth: 2, maxPages: 20 }
-});
-```
-
-## 📚 Documentation
-
-### Discovery Methods
-
-AgentPass supports multiple discovery strategies:
-
-1. **Framework Introspection**: Direct analysis of Express, Fastify, Koa apps
-2. **OpenAPI/Swagger**: Automatic parsing of API specifications  
-3. **URL Crawling**: Intelligent endpoint discovery through HTTP analysis
-4. **Manual Definition**: Programmatic endpoint registration
-
-### Security & Middleware
-
-```typescript
-// Add authentication
-agentpass.use('auth', async (context) => {
-  const token = context.headers['authorization'];
-  const user = await validateToken(token);
-  context.user = user;
-  return user;
-});
-
-// Add authorization
-agentpass.use('authz', async (context) => {
-  const { user, endpoint } = context;
-  if (endpoint.path.startsWith('/admin') && !user.isAdmin) {
-    throw new Error('Forbidden');
-  }
-  return true;
-});
-
-// Rate limiting
-import { RateLimit } from 'agentpass/src/middleware/rateLimit/RateLimit';
-const rateLimit = new RateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // requests per window
-});
-agentpass.use('pre', rateLimit.middleware());
-```
-
-### Response Transformation
-
-```typescript
-// Transform responses for MCP
-agentpass.use('post', async (context, response) => {
-  // Add metadata
-  return {
-    ...response,
-    _metadata: {
-      timestamp: new Date().toISOString(),
-      endpoint: context.endpoint.id
-    }
-  };
-});
-```
-
-## 🔧 MCP Server Configuration
-
-### Transport Types
-
-AgentPass supports multiple MCP transport types:
-
-#### stdio Transport
-Perfect for desktop applications like Claude Desktop:
-
-```typescript
+// Generate MCP server for Claude Desktop
 const mcpServer = await agentpass.generateMCPServer({
   transport: 'stdio',
   baseUrl: 'http://localhost:3000'
 });
 
 await mcpServer.start();
-// Server communicates via stdin/stdout
 ```
 
-#### HTTP Transport  
-For web clients and remote access:
+### OpenAPI/Swagger Integration
 
 ```typescript
-const mcpServer = await agentpass.generateMCPServer({
-  transport: 'http',
-  port: 3001,
-  host: 'localhost',
-  cors: true,
-  baseUrl: 'http://localhost:3000'
-});
-
-await mcpServer.start();
-// Server available at http://localhost:3001/mcp
-```
-
-### Custom Tool Configuration
-
-```typescript
-const mcpServer = await agentpass.generateMCPServer({
-  // Custom tool naming
-  toolNaming: (endpoint) => {
-    const method = endpoint.method.toLowerCase();
-    const resource = endpoint.path.split('/').pop();
-    return `${method}_${resource}`;
-  },
-  
-  // Custom descriptions
-  toolDescription: (endpoint) => {
-    return `${endpoint.method} ${endpoint.path} - ${endpoint.description}`;
-  },
-  
-  // Server capabilities
-  capabilities: {
-    tools: true,
-    resources: false,
-    prompts: false,
-    logging: false
-  }
-});
-```
-
-### Server Lifecycle Management
-
-```typescript
-// Check server status
-console.log(mcpServer.isRunning()); // false
-
-// Start the server
-await mcpServer.start();
-console.log(mcpServer.isRunning()); // true
-
-// Get server address (HTTP transport only)
-if (mcpServer.transport.type === 'http') {
-  console.log(mcpServer.getAddress()); // http://localhost:3001
-}
-
-// Stop the server
-await mcpServer.stop();
-console.log(mcpServer.isRunning()); // false
-```
-
-### Integration with Claude Desktop
-
-1. **Create your MCP server script**:
-
-```typescript
-// mcp-server.ts
 import { AgentPass } from 'agentpass';
-import express from 'express';
 
 const agentpass = new AgentPass({
-  name: 'my-api-mcp-server',
+  name: 'petstore-api',
   version: '1.0.0'
 });
 
-// Discover from your Express app
-await agentpass.discover({ app: myExpressApp, framework: 'express' });
+// Discover from OpenAPI spec
+await agentpass.discover({
+  openapi: './openapi.json',
+  framework: 'openapi'
+});
 
-// Generate stdio MCP server
+// Generate web-accessible MCP server
 const mcpServer = await agentpass.generateMCPServer({
-  transport: 'stdio',
-  baseUrl: 'http://localhost:3000' // Your API server
+  transport: 'http',
+  port: 3001,
+  cors: true,
+  baseUrl: 'https://petstore.swagger.io/v2'
 });
 
 await mcpServer.start();
 ```
 
-2. **Build and configure Claude Desktop**:
+## 🔧 MCP Transport Options
 
-```bash
-# Build your TypeScript
-npm run build
+AgentPass supports multiple MCP transport protocols:
 
-# Add to claude_desktop_config.json
+### 1. stdio (Claude Desktop)
+
+Perfect for local development and Claude Desktop integration:
+
+```typescript
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio',
+  baseUrl: 'http://localhost:3000'
+});
+```
+
+**Claude Desktop Configuration:**
+```json
 {
   "mcpServers": {
     "my-api": {
       "command": "node",
-      "args": ["dist/mcp-server.js"]
+      "args": ["path/to/your/mcp-server.js"]
     }
   }
 }
 ```
 
-3. **Restart Claude Desktop** - Your API endpoints will be available as tools!
+### 2. HTTP (Web Clients)
 
-## 🎯 Framework Support
-
-AgentPass supports all major Node.js frameworks:
-
-| Framework | Status | Discovery Method | Features |
-|-----------|--------|------------------|----------|
-| **Express.js** | ✅ Full | Route Introspection | Middleware analysis, nested routers, parameter detection |
-| **Fastify** | ✅ Full | Schema Introspection | JSON schema validation, route metadata, performance optimized |
-| **Koa** | ✅ Full | Router Analysis | koa-router support, middleware chain analysis, async/await |
-| **NestJS** | ✅ Full | Decorator Analysis | TypeScript decorators, dependency injection, modular architecture |
-| **Next.js** | ✅ Full | File System Scanning | API routes discovery, dynamic routes, App/Pages router |
-| **OpenAPI/Swagger** | ✅ Full | Specification Parsing | Complete OpenAPI 3.0 support, schema generation |
-| **URL Crawling** | ✅ Full | Live Endpoint Discovery | Intelligent crawling, response analysis, parameter inference |
-
-## 🔌 Plugins
-
-Extend AgentPass with plugins:
+For web applications and direct HTTP access:
 
 ```typescript
-const openAPIPlugin = {
-  name: 'openapi-enhancer',
-  onDiscover: async (endpoints) => {
-    // Enhance endpoints with OpenAPI metadata
-  },
-  onGenerate: async (mcpConfig) => {
-    // Modify MCP configuration
-  }
-};
-
-agentpass.plugin('openapi', openAPIPlugin);
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'http',
+  port: 3001,
+  host: 'localhost',
+  cors: true,
+  baseUrl: 'http://localhost:3000'
+});
 ```
 
-## 🛡️ Security Best Practices
+### 3. SSE (mcp-remote)
 
-1. **Always use authentication** for production deployments
-2. **Implement rate limiting** to prevent abuse
-3. **Use HTTPS** for all communications
-4. **Validate input parameters** and request bodies
-5. **Audit log** all MCP tool invocations
-6. **Apply principle of least privilege** for authorization
+For remote Claude Desktop connections via mcp-remote:
 
-## 📋 API Reference
+```typescript
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'sse',
+  port: 3002,
+  cors: true,
+  baseUrl: 'http://localhost:3000'
+});
+```
+
+## 🛡️ Security & Middleware
+
+### Authentication
+
+```typescript
+// API Key Authentication
+agentpass.use('auth', async (context) => {
+  const apiKey = context.request.headers['x-api-key'];
+  if (!apiKey || !isValidApiKey(apiKey)) {
+    throw new Error('Invalid API key');
+  }
+  context.user = await getUserFromApiKey(apiKey);
+});
+
+// Bearer Token Authentication
+agentpass.use('auth', async (context) => {
+  const token = context.request.headers['authorization']?.replace('Bearer ', '');
+  context.user = await verifyJWT(token);
+});
+```
+
+### Authorization
+
+```typescript
+agentpass.use('authz', async (context) => {
+  const { user, endpoint } = context;
+  const hasPermission = await checkPermission(user, endpoint.path, endpoint.method);
+  if (!hasPermission) {
+    throw new Error('Insufficient permissions');
+  }
+});
+```
+
+### Rate Limiting
+
+```typescript
+import { RateLimit } from 'agentpass/middleware';
+
+const rateLimit = new RateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100 // limit each IP to 100 requests per windowMs
+});
+
+agentpass.use('pre', rateLimit.middleware());
+```
+
+### Request/Response Transformation
+
+```typescript
+// Pre-request middleware
+agentpass.use('pre', async (context) => {
+  // Transform request data
+  context.request.params.userId = parseInt(context.request.params.userId);
+});
+
+// Post-response middleware
+agentpass.use('post', async (context, response) => {
+  // Transform response data
+  return {
+    ...response,
+    timestamp: new Date().toISOString()
+  };
+});
+```
+
+## 🎨 Customization
+
+### Custom Tool Naming
+
+```typescript
+const mcpServer = await agentpass.generateMCPServer({
+  transport: 'stdio',
+  baseUrl: 'http://localhost:3000',
+  toolNaming: (endpoint) => {
+    const method = endpoint.method.toLowerCase();
+    const resource = endpoint.path.split('/').pop() || 'endpoint';
+    return `${method}_${resource}`;
+  }
+});
+```
+
+### Custom Tool Descriptions
+
+```typescript
+const mcpServer = await agentpass.generateMCPServer({
+  toolDescription: (endpoint) => {
+    return `${endpoint.method} ${endpoint.path} - ${endpoint.summary || 'API endpoint'}`;
+  }
+});
+```
+
+## 🧩 Framework Support
+
+### Express.js ✅
+
+```typescript
+await agentpass.discover({ app: expressApp, framework: 'express' });
+```
+
+### Fastify ✅
+
+```typescript
+await agentpass.discover({ app: fastifyApp, framework: 'fastify' });
+```
+
+### Koa ✅
+
+```typescript
+await agentpass.discover({ app: koaApp, framework: 'koa' });
+```
+
+### OpenAPI/Swagger ✅
+
+```typescript
+await agentpass.discover({ 
+  openapi: './spec.json', // or URL or object
+  framework: 'openapi' 
+});
+```
+
+### NestJS 🚧
+
+```typescript
+await agentpass.discover({ app: nestApp, framework: 'nestjs' });
+```
+
+### Next.js 🚧
+
+```typescript
+await agentpass.discover({ 
+  appDir: './pages/api', 
+  framework: 'nextjs' 
+});
+```
+
+## 📚 Examples
+
+The project includes comprehensive examples in the `examples/` directory:
+
+- **[Getting Started](examples/getting-started.ts)** - Basic AgentPass usage
+- **[Express Integration](examples/express/)** - Express.js discovery and tools
+- **[Fastify Integration](examples/fastify/)** - Fastify schema-aware discovery
+- **[OpenAPI Parsing](examples/openapi/)** - OpenAPI/Swagger specification parsing
+- **[E-commerce API](examples/ecommerce/)** - Complex API with authentication and validation
+- **[Complete Servers](examples/complete-servers/)** - Production-ready MCP servers
+
+### Running Examples
+
+```bash
+# Express example
+npm run example:express
+
+# Complete stdio server for Claude Desktop
+npm run example:complete:stdio
+
+# Complete HTTP server for web clients
+npm run example:complete:http
+
+# Complete SSE server for mcp-remote
+npm run example:complete:sse
+```
+
+## 🧪 Testing
+
+AgentPass includes comprehensive test coverage:
+
+```bash
+# Run all tests
+npm test
+
+# Run only unit tests
+npm run test:unit
+
+# Run only E2E tests
+npm run test:e2e
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Test Coverage
+- **Unit Tests**: Core functionality, middleware, plugins
+- **E2E Tests**: Framework integration, real MCP client communication
+- **Documentation Tests**: All README examples validated at runtime
+
+## 🔌 Plugin System
+
+Create custom plugins to extend AgentPass functionality:
+
+```typescript
+import { BasePlugin } from 'agentpass/plugins';
+
+class MyCustomPlugin extends BasePlugin {
+  async onDiscover(endpoints) {
+    // Modify discovered endpoints
+    return endpoints.map(endpoint => ({
+      ...endpoint,
+      metadata: { ...endpoint.metadata, plugin: 'custom' }
+    }));
+  }
+
+  async onGenerate(tools) {
+    // Modify generated MCP tools
+    return tools;
+  }
+}
+
+agentpass.use(new MyCustomPlugin());
+```
+
+## 📖 API Reference
 
 ### AgentPass Class
+
+The main class for creating and configuring AgentPass instances.
 
 ```typescript
 class AgentPass {
   constructor(config: AgentPassConfig)
   
-  // Discovery
-  discover(options: DiscoverOptions): Promise<void>
-  defineEndpoint(endpoint: EndpointDefinition): void
+  discover(options: DiscoverOptions): Promise<EndpointDefinition[]>
+  generateMCPServer(config: MCPServerConfig): Promise<MCPServer>
   
-  // Middleware
-  use(phase: MiddlewarePhase, middleware: Middleware): void
+  use(middleware: Middleware): void
+  use(type: MiddlewareType, middleware: Middleware): void
+  use(plugin: BasePlugin): void
   
-  // Transformation
-  transform(transformer: EndpointTransformer): void
-  
-  // MCP Generation
-  generateMCPServer(options?: MCPOptions): Promise<MCPServer>
-  
-  // Plugins
-  plugin(name: string, plugin: Plugin): void
+  getEndpoints(): EndpointDefinition[]
+  getTools(): MCPTool[]
 }
 ```
 
@@ -405,246 +399,56 @@ interface AgentPassConfig {
   name: string;
   version: string;
   description?: string;
-  metadata?: Record<string, any>;
 }
 
 interface DiscoverOptions {
-  app?: any;                    // Framework app instance
-  framework?: string;           // 'express' | 'fastify' | 'koa'
-  url?: string;                 // Base URL for discovery
-  strategy?: 'openapi' | 'crawl' | 'auto';
-  openapi?: string | object;    // OpenAPI spec
-  include?: string[];           // Include patterns
-  exclude?: string[];           // Exclude patterns
+  framework: 'express' | 'fastify' | 'koa' | 'nestjs' | 'nextjs' | 'openapi';
+  app?: any; // Framework app instance
+  openapi?: string | object; // OpenAPI spec
+  baseUrl?: string;
 }
-```
 
-## 🧪 Examples
-
-### E-commerce API
-
-```typescript
-import { AgentPass } from 'agentpass';
-
-const agentpass = new AgentPass({
-  name: 'ecommerce-api',
-  version: '1.0.0'
-});
-
-// Discover endpoints
-await agentpass.discover({ app: expressApp, framework: 'express' });
-
-// Add business logic validation
-agentpass.use('pre', async (context) => {
-  if (context.endpoint.path === '/orders' && 
-      context.endpoint.method === 'POST') {
-    // Validate inventory
-    await validateInventory(context.request.body?.items);
-  }
-});
-
-// Enhanced tool descriptions
-agentpass.transform((endpoint) => {
-  const descriptions = {
-    'GET /products': 'Search and list products with filtering',
-    'POST /orders': 'Create a new order with items and shipping'
-  };
-  endpoint.description = descriptions[`${endpoint.method} ${endpoint.path}`];
-  return endpoint;
-});
-
-const mcpServer = await agentpass.generateMCPServer({
-  transport: 'stdio',
-  baseUrl: 'http://localhost:3000',
-  toolNaming: (endpoint) => {
-    const action = endpoint.method.toLowerCase();
-    const resource = endpoint.path.split('/')[1];
-    return `${action}_${resource}`;
-  }
-});
-```
-
-### Complete Examples
-
-AgentPass includes complete working examples organized by complexity:
-
-```bash
-# Getting started example
-npm run example:getting-started
-
-# Framework-specific examples
-npm run example:express
-npm run example:fastify
-npm run example:koa
-
-# Advanced examples
-npm run example:ecommerce      # E-commerce API with auth and rate limiting
-npm run example:openapi        # OpenAPI/Swagger integration
-
-# Complete MCP servers with different transports
-npm run example:complete:stdio  # stdio transport for Claude Desktop
-npm run example:complete:http   # HTTP transport for web clients
-npm run example:complete:sse    # SSE transport for mcp-remote + Claude Desktop
-```
-
-#### Transport Selection
-
-For framework examples, you can select the transport type:
-
-```bash
-# Run Express example with different transports
-npm run example:express                    # Default: basic Express example
-npm run example:express -- --transport=http  # HTTP transport
-npm run example:express -- --transport=sse   # SSE transport
-```
-
-The complete examples demonstrate:
-- **Real API Server**: Working Express server with multiple endpoints
-- **Auto-Discovery**: Automatic endpoint detection and conversion
-- **MCP Integration**: Ready-to-use MCP server with tools
-- **Multiple Transports**: stdio, HTTP, and SSE support
-- **Framework Support**: Express, Fastify, Koa examples
-
-## 🧪 Testing
-
-```bash
-# Run tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run with coverage
-npm test -- --coverage
-```
-
-## 🔧 Development
-
-```bash
-# Clone the repository
-git clone https://github.com/agentpass/agentpass-sdk.git
-cd agentpass-sdk
-
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
-
-# Start development mode
-npm run dev
-
-# Run linting
-npm run lint
-```
-
-## 🚀 Deployment
-
-### Complete MCP Server Examples
-
-For production use, start with our complete examples:
-
-```bash
-# For Claude Desktop (stdio transport)
-npm run example:complete:stdio
-
-# For Claude Desktop with mcp-remote (SSE transport) 
-npm run example:complete:sse
-
-# For web clients (HTTP transport)
-npm run example:complete:http
-```
-
-### Custom MCP Server
-
-Build your own from the examples:
-
-```bash
-# Build the project
-npm run build
-
-# Run framework examples
-npm run example:express
-npm run example:fastify
-npm run example:koa
-
-# Run with specific transport
-npm run example:express -- --transport=http
-```
-
-### Integration with Claude Desktop
-
-Add to your Claude Desktop MCP configuration:
-
-```json
-{
-  "mcpServers": {
-    "company-api": {
-      "command": "npx",
-      "args": ["ts-node", "examples/complete-servers/stdio-server.ts"]
-    }
-  }
+interface MCPServerConfig {
+  transport: 'stdio' | 'http' | 'sse';
+  port?: number;
+  host?: string;
+  cors?: boolean;
+  baseUrl: string;
+  toolNaming?: (endpoint: EndpointDefinition) => string;
+  toolDescription?: (endpoint: EndpointDefinition) => string;
 }
-```
-
-For SSE transport with mcp-remote:
-```json
-{
-  "mcpServers": {
-    "company-api-sse": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "http://localhost:PORT/sse"
-      ]
-    }
-  }
-}
-```
-
-For the HTTP transport version, configure your web client to connect to the MCP endpoint:
-```
-POST http://localhost:PORT/mcp
-Content-Type: application/json
-
-{"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}
 ```
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! See our [Contributing Guide](CONTRIBUTING.md) for details.
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Commit changes: `git commit -m 'Add amazing feature'`
+4. Push to branch: `git push origin feature/amazing-feature`
 5. Open a Pull Request
 
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🆘 Support
+## 🔗 Links
 
-- 📖 [Documentation](https://docs.agentpass.dev)
-- 🐛 [Issue Tracker](https://github.com/agentpass/agentpass-sdk/issues)
-- 💬 [Discussions](https://github.com/agentpass/agentpass-sdk/discussions)
-- 📧 [Email Support](mailto:support@agentpass.dev)
-
-## 🗺️ Roadmap
-
-- [ ] **v1.1**: NestJS and Next.js support
-- [ ] **v1.2**: GraphQL endpoint discovery
-- [ ] **v1.3**: Advanced caching strategies
-- [ ] **v1.4**: Real-time WebSocket support
-- [ ] **v2.0**: Multi-language SDK (Python, Go)
+- **Documentation**: [Full Documentation](https://github.com/agentpass/agentpass-sdk#readme)
+- **Examples**: [Example Repository](https://github.com/agentpass/agentpass-sdk/tree/main/examples)
+- **Issues**: [GitHub Issues](https://github.com/agentpass/agentpass-sdk/issues)
+- **NPM Package**: [agentpass on NPM](https://www.npmjs.com/package/agentpass)
+- **Model Context Protocol**: [MCP Documentation](https://modelcontextprotocol.io)
 
 ## 🙏 Acknowledgments
 
-- Model Context Protocol team for the excellent MCP specification
-- The open-source community for inspiration and contributions
-- All contributors who help make AgentPass better
+- [Model Context Protocol](https://modelcontextprotocol.io) - The foundation protocol this SDK implements
+- [Anthropic](https://anthropic.com) - For creating Claude and the MCP specification
+- The open-source community for their invaluable contributions
 
 ---
 
-Made with ❤️ by the AgentPass team
+**Made with ❤️ for the AI community**
+
+Transform your HTTP APIs into AI-accessible tools with AgentPass.
