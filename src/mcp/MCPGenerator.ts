@@ -11,6 +11,7 @@ import {
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AgentPass } from '../core/AgentPass';
 import { MiddlewareRunner } from '../middleware/MiddlewareRunner';
@@ -25,7 +26,7 @@ class AgentPassMCPServer implements MCPServer {
   public transport: { type: 'stdio' | 'sse' | 'http'; config?: Record<string, unknown> };
   
   private server: Server;
-  private serverTransport: StdioServerTransport | SSEServerTransport | null = null;
+  private serverTransport: StdioServerTransport | SSEServerTransport | StreamableHTTPServerTransport | null = null;
   private httpServer: http.Server | null = null; // For HTTP/SSE transports
   private isServerRunning = false;
   private mcpTools: MCPTool[] = [];
@@ -75,12 +76,21 @@ class AgentPassMCPServer implements MCPServer {
     const port = (this.transport.config?.port as number) ?? 3000;
     const host = (this.transport.config?.host as string) || 'localhost';
 
-    this.httpServer = http.createServer((req, res) => {
+    // Create StreamableHTTPServerTransport
+    this.serverTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: () => randomUUID()
+    });
+
+    // Connect the server to the transport
+    await this.server.connect(this.serverTransport);
+
+    // Create HTTP server that delegates to the StreamableHTTPServerTransport
+    this.httpServer = http.createServer(async (req, res) => {
       // Set CORS headers
       if (this.transport.config?.cors) {
         res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id');
       }
 
       if (req.method === 'OPTIONS') {
@@ -89,8 +99,28 @@ class AgentPassMCPServer implements MCPServer {
         return;
       }
 
-      if (req.method === 'POST' && req.url === '/mcp') {
-        this.handleMCPRequest(req, res);
+      if (req.url === '/mcp') {
+        // Parse request body for POST requests
+        if (req.method === 'POST') {
+          let body = '';
+          req.on('data', chunk => {
+            body += chunk.toString();
+          });
+          
+          req.on('end', async () => {
+            try {
+              const parsedBody = JSON.parse(body);
+              await (this.serverTransport as StreamableHTTPServerTransport).handleRequest(req, res, parsedBody);
+            } catch (error) {
+              console.error('Error parsing request body:', error);
+              res.writeHead(400);
+              res.end('Invalid JSON');
+            }
+          });
+        } else {
+          // Handle GET and DELETE requests
+          await (this.serverTransport as StreamableHTTPServerTransport).handleRequest(req, res);
+        }
       } else {
         res.writeHead(404);
         res.end('Not found');
@@ -187,82 +217,6 @@ class AgentPassMCPServer implements MCPServer {
     }
   }
 
-  private async handleMCPRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-
-    req.on('end', async () => {
-      try {
-        const message = JSON.parse(body);
-        let result: any;
-
-        // Handle different MCP message types
-        if (message.method === 'tools/list') {
-          result = {
-            tools: this.mcpTools.map(tool => ({
-              name: tool.name,
-              description: tool.description,
-              inputSchema: tool.inputSchema,
-            }))
-          };
-        } else if (message.method === 'tools/call') {
-          const { name, arguments: args } = message.params;
-          
-          const tool = this.mcpTools.find(t => t.name === name);
-          if (!tool) {
-            throw new Error(`Tool not found: ${name}`);
-          }
-
-          try {
-            const mockContext: MiddlewareContext = {
-              endpoint: { id: '', method: 'GET', path: '', tags: [], parameters: [], responses: {}, metadata: {} },
-              request: { path: '', method: 'GET', headers: {}, params: {}, query: {} },
-              timestamp: new Date(),
-              requestId: randomUUID(),
-              metadata: {
-                baseUrl: this.baseUrl
-              }
-            };
-            const toolResult = await tool.handler(args || {}, mockContext);
-            
-            result = {
-              content: [
-                {
-                  type: 'text',
-                  text: typeof toolResult === 'string' ? toolResult : JSON.stringify(toolResult, null, 2),
-                },
-              ],
-            };
-          } catch (error) {
-            throw new Error(
-              `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
-            );
-          }
-        } else {
-          throw new Error(`Unsupported method: ${message.method}`);
-        }
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          jsonrpc: '2.0',
-          id: message.id,
-          result
-        }));
-      } catch (error) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          jsonrpc: '2.0',
-          id: body ? JSON.parse(body).id : null,
-          error: {
-            code: -1,
-            message: error instanceof Error ? error.message : 'Internal error'
-          }
-        }));
-      }
-    });
-  }
   
   async stop(): Promise<void> {
     if (!this.isServerRunning) {
